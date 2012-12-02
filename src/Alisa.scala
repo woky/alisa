@@ -54,7 +54,7 @@ object Alisa extends Logger {
 
 	def loadConfig(file: String): Config = {
 		logInfo("Parsing config file")
-		val confStr = "import alisa.common._\n" + Source.fromFile(file).mkString
+		val confStr = "import alisa._\n" + Source.fromFile(file).mkString
 		val tb = currentMirror.mkToolBox()
 		val expr = tb.parse(confStr)
 		val conf = tb.eval(expr).asInstanceOf[Config]
