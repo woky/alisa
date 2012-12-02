@@ -87,8 +87,6 @@ final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
 				love(bot, channel, sender, None, ps, msgs)
 			else if (presentNicks.contains(nick) && !nick.equals(bot.getNick))
 				love(bot, channel, nick, Some(sender), ps, msgs)
-			else
-				bot.sendMessage(channel, s"$sender, nope :)")
 	}
 
 	def love(bot: PircBot, channel: String, rcpt: String, senderOpt: Option[String], ps: String, msgs: Array[String]) {
