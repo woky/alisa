@@ -88,9 +88,9 @@ object Util {
 	val WS_SPLIT_REGEX = Pattern.compile("\\s+")
 	val COLON_SPLIT_REGEX = Pattern.compile("\\s*[,;]\\s*")
 
-	def mkArgs(trimmed: String, default: Option[String] = None, limit: Int = -1,
+	def mkArgs(line: String, default: Option[String] = None, limit: Int = -1,
 	           regex: Pattern = DEFAULT_SPLIT_REGEX): List[String] =
-		regex.split(trimmed, limit).toList match {
+		regex.split(line.trim, limit).toList match {
 			case "" :: Nil =>
 				default match {
 					case Some(s) => List(s)
@@ -101,7 +101,7 @@ object Util {
 
 	val PARAM_REGEX = Pattern.compile("(\\w+)(?:=(\\S+))?")
 
-	def mkParams(trimmed: String) = {
+	def mkParams(line: String) = {
 		def iter(args: List[String], params: Map[String, Option[String]]): Map[String, Option[String]] =
 			args match {
 				case arg :: xs => {
@@ -117,7 +117,7 @@ object Util {
 				case Nil => params
 			}
 
-		iter(mkArgs(trimmed, None, regex = WS_SPLIT_REGEX), Map())
+		iter(mkArgs(line.trim, None, regex = WS_SPLIT_REGEX), Map())
 	}
 }
 
