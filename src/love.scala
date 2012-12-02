@@ -74,8 +74,12 @@ final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
 					val args = mkArgs(act, limit = 2, regex = WS_SPLIT_REGEX)
 					args match {
 						case (ps :: nicks :: Nil) => {
-							loveNicks(bot, target, sender, nicks, ps, config.actionMessages, false)
-							false
+							if (psSet.contains(ps)) {
+								loveNicks(bot, target, sender, nicks, ps, config.actionMessages, false)
+								false
+							} else {
+								true
+							}
 						}
 						case _ => true
 					}
