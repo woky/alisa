@@ -28,6 +28,12 @@ object Love {
 	}
 
 	def apply() = new Love(cute)
+
+	def apply(verbs: List[String], cmdReplies: Array[String]) =
+		new Love(new LoveConfig(verbPairs(verbs), cmdReplies, None))
+
+	def apply(verbs: List[String], cmdReplies: Array[String], actReplies: Array[String]) =
+		new Love(new LoveConfig(verbPairs(verbs), cmdReplies, Some(actReplies)))
 }
 
 final class Love(config: LoveConfig) extends AbstractModule {
