@@ -113,6 +113,7 @@ final class LuceneService @Inject()(config: LuceneConfig) extends Service {
 	def stop {
 		synchronized {
 			if (!stopped) {
+				writer.commit
 				writer.close
 				reader.close
 				stopped = true
