@@ -52,7 +52,7 @@ final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
 				case IrcCommandEvent(IrcEventContext(_, bot), channel, sender, _, _, cmd, nicks) => {
 					config.psByVerb.get(cmd) match {
 						case Some(ps) => {
-							loveNicks(bot, channel, sender, nicks, ps, config.commandMessages, true)
+							loveNicks(bot, channel, sender, nicks, ps, Some(config.commandMessages), true)
 							false
 						}
 						case None => true
@@ -68,8 +68,7 @@ final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
 					val args = mkArgs(act, limit = 2, regex = WS_SPLIT_REGEX)
 					args match {
 						case (ps :: nicks :: Nil) => {
-							val msgs = config.actionMessages.getOrElse(config.commandMessages)
-							loveNicks(bot, target, sender, nicks, ps, msgs, false)
+							loveNicks(bot, target, sender, nicks, ps, config.actionMessages, false)
 							false
 						}
 						case _ => true
@@ -78,7 +77,7 @@ final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
 			}
 	})
 
-	def loveNicks(bot: PircBot, channel: String, sender: String, args: String, ps: String, msgs: Array[String],
+	def loveNicks(bot: PircBot, channel: String, sender: String, args: String, ps: String, msgs: Option[Array[String]],
 	              isCommand: Boolean) {
 		val nicks = mkArgs(args, Some(sender))
 		val presentNicks = bot.getUsers(channel).map(_.getNick).toSet
@@ -97,11 +96,16 @@ final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
 				love(bot, channel, nick, Some(sender), ps, msgs)
 	}
 
-	def love(bot: PircBot, channel: String, rcpt: String, senderOpt: Option[String], ps: String, msgs: Array[String]) {
-		val sender = senderOpt.getOrElse("you")
-		val msg = msgs(Random.nextInt(msgs.length)).format(rcpt, sender)
-
+	def love(bot: PircBot, channel: String, rcpt: String, senderOpt: Option[String], ps: String,
+	         optMsgs: Option[Array[String]]) {
 		bot.sendAction(channel, ps + ' ' + rcpt)
-		bot.sendMessage(channel, msg)
+		optMsgs match {
+			case Some(msgs) => {
+				val sender = senderOpt.getOrElse("you")
+				val msg = msgs(Random.nextInt(msgs.length)).format(rcpt, sender)
+				bot.sendMessage(channel, msg)
+			}
+			case _ =>
+		}
 	}
 }
