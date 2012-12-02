@@ -43,7 +43,7 @@ object LogsCommon {
 		final val QUERY_PARAM = "query"
 		final val QUERY_DEFAULT = "*"
 		final val SORTBYTIME_PARAM = "sortByTime"
-		final val SORTBYTIME_DEFAULT = "false"
+		final val SORTBYTIME_DEFAULT = "true"
 	}
 
 	object Command {
