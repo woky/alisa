@@ -1,0 +1,122 @@
+package alisa
+
+import org.jibble.pircbot.{IrcException, PircBot}
+import java.io.IOException
+import java.util.regex.Pattern
+import scala.Some
+import java.util.concurrent.Executors
+
+class AlisaNetwork(val globalConf: GlobalConfig,
+                   val networkConf: NetworkConfig,
+                   val handlerLists: IrcEventHandlerLists) extends PircBot with Logger {
+
+	private var destroy = false
+	val cmdRegex: Pattern = Pattern.compile(s"^${networkConf.nick}\\s*[:, ]\\s*(\\S+)(?:\\s+(.+))?\\s*$$")
+	val eventContext = IrcEventContext(networkConf.name, this)
+	val executor = Executors.newSingleThreadExecutor
+
+	setVerbose(globalConf.verbose)
+	setName(networkConf.nick)
+	setLogin(getName)
+	setFinger(networkConf.finger)
+	setVersion(getFinger)
+
+	if (networkConf.servers.isEmpty)
+		logWarn("No servers for network " + networkConf.name)
+	else
+		networkReconnect
+
+	override def onMessage(channel: String, sender: String, login: String, hostname: String, message: String) {
+		parseCommand(message) match {
+			case Some((command, args)) => {
+				val event = IrcCommandEvent(eventContext, channel, sender, login, hostname, command, args)
+				handleEventAsync(event, handlerLists.command.list)
+			}
+			case None => {
+				val event = IrcMessageEvent(eventContext, channel, sender, login, hostname, message)
+				handleEventAsync(event, handlerLists.message.list)
+			}
+		}
+	}
+
+	override def onAction(sender: String, login: String, hostname: String, target: String, action: String) {
+		val event = IrcActionEvent(eventContext, sender, login, hostname, target, action)
+		handleEventAsync(event, handlerLists.action.list)
+	}
+
+	def parseCommand(message: String) = {
+		val matcher = cmdRegex.matcher(message)
+		if (matcher.matches) {
+			val command = matcher.group(1)
+			val args = matcher.group(2) match {
+				case s: String => s
+				case _ => "" // null
+			}
+			Some((command, args))
+		} else {
+			None
+		}
+	}
+
+	def handleEventAsync[E <: IrcEvent](event: E, handlers: List[IrcEventHandler[E]]) {
+		executor.submit(new Runnable {
+			def run {
+				handleEvent(event, handlers)
+			}
+		})
+	}
+
+	def handleEvent[E <: IrcEvent](event: E, handlers: List[IrcEventHandler[E]]) {
+		handlers match {
+			case handler :: rest =>
+				if (handler.handle(event))
+					handleEvent(event, rest)
+			case Nil =>
+		}
+	}
+
+	override def onDisconnect {
+		networkReconnect
+	}
+
+	def networkDisconnect {
+		synchronized {
+			disconnect
+			dispose
+
+			destroy = true
+			notifyAll
+		}
+	}
+
+	private def networkReconnect {
+		synchronized {
+			while (!destroy) {
+				for {
+					server <- networkConf.servers
+					_ <- 0 until server.reconnTries
+				} {
+					try {
+						logDebug("Connecting to " + server)
+						connect(server.host, server.port)
+						logDebug("Connected")
+
+						for (chan <- networkConf.channels)
+							joinChannel(chan.name)
+
+						return
+					} catch {
+						case e@(_: IOException | _: IrcException) => {
+							logError("Could not connect to " + server, e)
+							AlisaNetwork.this.wait(server.reconnDelay)
+							if (destroy)
+								return
+						}
+					}
+				}
+			}
+		}
+	}
+
+	override protected def logMsg(msg: => String) = "[" + networkConf.name + "] " + msg
+}
