@@ -10,12 +10,12 @@ import javax.inject.{Inject, Singleton}
 
 object Love {
 
-	lazy final val cute = new LoveConfig(
-		verbPairs(List("hug", "kiss")),
-		Array("%s, I-I do it only because %s ordered me to.", "%s, I-It's not like I feel anything to you."),
-		Some(Array("%s, ( ´・‿-) ~ ♥", "%s, (  ^‿^) ~ ♥")))
+	lazy final val cute = apply(
+		List("hug", "kiss"),
+		Some(Seq("%s, I-I do it only because %s ordered me to.", "%s, I-It's not like I feel anything to you.")),
+		Some(Seq("%s, ( ´・‿-) ~ ♥", "%s, (  ^‿^) ~ ♥")))
 
-	def verbPairs(verbs: List[String]) = verbs.map(v => v -> verbToPresentSimple(v)).toMap
+	def verbPairs(verbs: List[String]) = verbs.map(v => v -> Some(verbToPresentSimple(v) + " %s")).toMap
 
 	def verbToPresentSimple(base: String) = {
 		if (base.endsWith("y"))
@@ -27,13 +27,26 @@ object Love {
 			base + "s"
 	}
 
-	def apply() = new Love(cute)
+	def apply(): Love = cute
 
-	def apply(verbs: List[String], cmdReplies: Array[String]) =
-		new Love(new LoveConfig(verbPairs(verbs), cmdReplies, None))
+	def apply(verbs: List[String], cmdReplies: Option[Seq[String]], actReplies: Option[Seq[String]]): Love =
+		new Love(LoveConfig(
+			command = Some(
+				LoveEventConfig(
+					verbPairs(verbs),
+					cmdReplies)),
+			action = Some(
+				LoveEventConfig(
+					verbs.map(verbToPresentSimple(_)).map(v => v -> Some(v + " %s")).toMap,
+					actReplies))))
 
-	def apply(verbs: List[String], cmdReplies: Array[String], actReplies: Array[String]) =
-		new Love(new LoveConfig(verbPairs(verbs), cmdReplies, Some(actReplies)))
+	def commandNoAction(verbs: List[String], replies: Seq[String]): Love =
+		new Love(LoveConfig(
+			command = Some(
+				LoveEventConfig(
+					verbs.map(_ -> None).toMap,
+					Some(replies))),
+			action = None))
 }
 
 final class Love(config: LoveConfig) extends AbstractModule {
@@ -43,75 +56,91 @@ final class Love(config: LoveConfig) extends AbstractModule {
 	}
 }
 
-final case class LoveConfig(psByVerb: Map[String, String],
-                            commandMessages: Array[String],
-                            actionMessages: Option[Array[String]])
+final case class LoveConfig(command: Option[LoveEventConfig],
+                            action: Option[LoveEventConfig])
+
+final case class LoveEventConfig(verbs: Map[String, Option[String]],
+                                 replies: Option[Seq[String]])
 
 @Singleton
-final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
+final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers with Logger {
 
-	val psSet = config.psByVerb.map(_._2).toSet
+	if (config.action.isEmpty && config.command.isEmpty)
+		logWarn("No events were configured")
 
-	override val command = Some(new IrcEventHandler[IrcCommandEvent] {
-		def handle(event: IrcCommandEvent) =
-			event match {
-				case IrcCommandEvent(IrcEventContext(_, bot), channel, sender, _, _, cmd, nicks) => {
-					config.psByVerb.get(cmd) match {
-						case Some(ps) => {
-							loveNicks(bot, channel, sender, nicks, ps, Some(config.commandMessages), true)
-							false
-						}
-						case None => true
+	override val command = config.command match {
+		case Some(evConfig) => {
+			Some(new IrcEventHandler[IrcCommandEvent] {
+				def handle(event: IrcCommandEvent) =
+					event match {
+						case IrcCommandEvent(IrcEventContext(_, bot), channel, sender, _, _, cmd, nicks) =>
+							loveNicks(bot, channel, sender, true, cmd, nicks, evConfig)
 					}
-				}
-			}
-	})
-
-	override val action = Some(new IrcEventHandler[IrcActionEvent] {
-		def handle(event: IrcActionEvent) =
-			event match {
-				case IrcActionEvent(IrcEventContext(_, bot), sender, _, _, target, act) => {
-					val args = mkArgs(act, limit = 2, regex = WS_SPLIT_REGEX)
-					args match {
-						case (ps :: nicks :: Nil) => {
-							if (psSet.contains(ps)) {
-								loveNicks(bot, target, sender, nicks, ps, config.actionMessages, false)
-								false
-							} else {
-								true
-							}
-						}
-						case _ => true
-					}
-				}
-			}
-	})
-
-	def loveNicks(bot: PircBot, channel: String, sender: String, args: String, ps: String, msgs: Option[Array[String]],
-	              isCommand: Boolean) {
-		val nicks = mkArgs(args, Some(sender))
-		val presentNicks = bot.getUsers(channel).map(_.getNick).toSet
-
-		for (nick <- nicks)
-			if (sender.equals(nick) || "me".equals(nick)) {
-				love(bot, channel, sender, None, ps, msgs)
-			} else if (isCommand) {
-				if (!presentNicks.contains(nick))
-					bot.sendMessage(channel, s"$sender, who's $nick?")
-				else if (!nick.equals(bot.getNick))
-					bot.sendMessage(channel, s"$sender, that's not possible.")
-				else
-					love(bot, channel, nick, Some(sender), ps, msgs)
-			} else if (presentNicks.contains(nick) && !nick.equals(bot.getNick))
-				love(bot, channel, nick, Some(sender), ps, msgs)
+			})
+		}
+		case _ => None
 	}
 
-	def love(bot: PircBot, channel: String, rcpt: String, senderOpt: Option[String], ps: String,
-	         optMsgs: Option[Array[String]]) {
-		bot.sendAction(channel, ps + ' ' + rcpt)
-		optMsgs match {
+	override val action = config.action match {
+		case Some(evConfig) => {
+			Some(new IrcEventHandler[IrcActionEvent] {
+				def handle(event: IrcActionEvent) =
+					event match {
+						case IrcActionEvent(IrcEventContext(_, bot), sender, _, _, channel, act) => {
+							val args = mkArgs(act, limit = 2, regex = WS_SPLIT_REGEX)
+							args match {
+								case (cmd :: nicks :: Nil) =>
+									loveNicks(bot, channel, sender, false, cmd, nicks, evConfig)
+								case _ => true
+							}
+						}
+					}
+			})
+		}
+		case _ => None
+	}
+
+	def loveNicks(bot: PircBot, channel: String, sender: String, isCommand: Boolean, origVerb: String, args: String,
+	              evConfig: LoveEventConfig): Boolean = {
+		evConfig match {
+			case LoveEventConfig(verbs, replies) =>
+				verbs.get(origVerb) match {
+					case Some(verb) => {
+						val nicks = mkArgs(args, Some(sender))
+						val presentNicks = bot.getUsers(channel).map(_.getNick).toSet
+
+						for (nick <- nicks)
+							if (sender.equals(nick) || "me".equals(nick)) {
+								love(bot, channel, sender, None, verb, replies)
+							} else if (isCommand) {
+								if (!presentNicks.contains(nick))
+									bot.sendMessage(channel, s"$sender, who's $nick?")
+								else if (nick.equals(bot.getNick))
+									bot.sendMessage(channel, s"$sender, I can't do that, sorry.")
+								else
+									love(bot, channel, nick, Some(sender), verb, replies)
+							} else if (presentNicks.contains(nick) && !nick.equals(bot.getNick)) {
+								love(bot, channel, nick, Some(sender), verb, replies)
+							}
+
+						false
+					}
+					case _ => true
+				}
+		}
+	}
+
+	def love(bot: PircBot, channel: String, rcpt: String, senderOpt: Option[String], optVerb: Option[String],
+	         optReplies: Option[Seq[String]]) {
+		val sender = senderOpt.getOrElse("you")
+
+		optVerb match {
+			case Some(verb) => bot.sendAction(channel, verb.format(rcpt, sender))
+			case _ =>
+		}
+
+		optReplies match {
 			case Some(msgs) => {
-				val sender = senderOpt.getOrElse("you")
 				val msg = msgs(Random.nextInt(msgs.length)).format(rcpt, sender)
 				bot.sendMessage(channel, msg)
 			}
