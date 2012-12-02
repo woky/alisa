@@ -52,7 +52,7 @@ final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
 				case IrcCommandEvent(IrcEventContext(_, bot), channel, sender, _, _, cmd, nicks) => {
 					config.psByVerb.get(cmd) match {
 						case Some(ps) => {
-							loveNicks(bot, channel, sender, nicks, ps, config.commandMessages)
+							loveNicks(bot, channel, sender, nicks, ps, config.commandMessages, true)
 							false
 						}
 						case None => true
@@ -69,7 +69,7 @@ final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
 					args match {
 						case (ps :: nicks :: Nil) => {
 							val msgs = config.actionMessages.getOrElse(config.commandMessages)
-							loveNicks(bot, target, sender, nicks, ps, msgs)
+							loveNicks(bot, target, sender, nicks, ps, msgs, false)
 							false
 						}
 						case _ => true
@@ -78,14 +78,22 @@ final class LoveHandlers @Inject()(config: LoveConfig) extends ModuleHandlers {
 			}
 	})
 
-	def loveNicks(bot: PircBot, channel: String, sender: String, args: String, ps: String, msgs: Array[String]) {
+	def loveNicks(bot: PircBot, channel: String, sender: String, args: String, ps: String, msgs: Array[String],
+	              isCommand: Boolean) {
 		val nicks = mkArgs(args, Some(sender))
 		val presentNicks = bot.getUsers(channel).map(_.getNick).toSet
 
 		for (nick <- nicks)
-			if (sender.equals(nick) || "me".equals(nick))
+			if (sender.equals(nick) || "me".equals(nick)) {
 				love(bot, channel, sender, None, ps, msgs)
-			else if (presentNicks.contains(nick) && !nick.equals(bot.getNick))
+			} else if (isCommand) {
+				if (!presentNicks.contains(nick))
+					bot.sendMessage(channel, s"$sender, who's $nick?")
+				else if (!nick.equals(bot.getNick))
+					bot.sendMessage(channel, s"$sender, that's not possible.")
+				else
+					love(bot, channel, nick, Some(sender), ps, msgs)
+			} else if (presentNicks.contains(nick) && !nick.equals(bot.getNick))
 				love(bot, channel, nick, Some(sender), ps, msgs)
 	}
 
