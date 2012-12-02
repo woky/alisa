@@ -16,7 +16,7 @@ case class NetworkConfig(name: String,
 
 case class ChannelConfig(name: String)
 
-case class GlobalConfig(verbose: Boolean = true,
+case class GlobalConfig(verbose: Boolean = false,
                         maxMsgSize: Int = 512)
 
 case class Config(global: GlobalConfig = new GlobalConfig,
