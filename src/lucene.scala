@@ -17,6 +17,7 @@ import beans.BeanProperty
 import org.apache.lucene.document._
 import java.io.File
 import javax.inject.Singleton
+import org.apache.lucene.queryparser.classic.QueryParser.Operator
 
 object LuceneCommon {
 
@@ -138,6 +139,7 @@ final class LuceneService @Inject()(config: LuceneConfig) extends Service {
 	def createQueryParser = {
 		val p = new QueryParser(LUCENE_VERSION, MSG, analyzer)
 		p.setAllowLeadingWildcard(true)
+		p.setDefaultOperator(Operator.AND)
 		p
 	}
 
