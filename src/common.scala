@@ -3,10 +3,16 @@ package alisa
 import org.slf4j.LoggerFactory
 import java.util.regex.Pattern
 import java.io.InputStream
+import com.google.inject.Module
 
 trait Service {
 
 	def stop
+}
+
+trait IrcModule extends Module {
+
+	def handlers: Class[_ <: ModuleHandlers]
 }
 
 trait Logger {
