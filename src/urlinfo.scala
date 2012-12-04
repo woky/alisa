@@ -236,7 +236,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 							val ct = ctHeader.getValue
 							if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
 								try {
-									buf.append(getTitle(uri, ct, MAX_URL_INFO_LENGTH - buf.size, getResp))
+									buf.append(getTitle(uri, MAX_URL_INFO_LENGTH - buf.size, getResp))
 								} catch {
 									case e@(_: IOException | _: ClientProtocolException | _: SAXException) => {
 										msg = Some("failed to get/parse page: " + e)
@@ -273,26 +273,12 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 
 	}
 
-	private def getTitle(uri: URI, ct: String, maxTitleLen: Int, getResp: Option[HttpResponse]): CharSequence = {
+	private def getTitle(uri: URI, maxTitleLen: Int, getResp: Option[HttpResponse]): CharSequence = {
 		val input = getResp.getOrElse {
 			main.httpClient.execute(new HttpGet(uri))
 		}.getEntity.getContent
 
 		try {
-			val httpCharset: Option[Charset] = {
-				val matcher = CHARSET_REGEX.matcher(ct)
-				if (matcher.find) {
-					val name = matcher.group(1)
-					try {
-						Some(Charset.forName(name))
-					} catch {
-						case _: UnsupportedEncodingException => return "unknown page encoding: " + name
-					}
-				} else {
-					None
-				}
-			}
-
 			val titlePrefix = "title: "
 			val buf = CharBuffer.allocate(maxTitleLen)
 			buf.append(titlePrefix)
@@ -302,12 +288,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 			parser.setHeuristics(Heuristics.ICU)
 
 			val limInput = new LimitedInputStream(input, main.context.config.dlLimit)
-			val xmlSource =
-				if (httpCharset.isDefined) {
-					new InputSource(new InputStreamReader(limInput, httpCharset.get))
-				} else {
-					new InputSource(limInput)
-				}
+			val xmlSource = new InputSource(limInput)
 
 			breakable {
 				parser.parse(xmlSource)
