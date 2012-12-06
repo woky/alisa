@@ -299,13 +299,14 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 
 			val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
 			parser.setContentHandler(new UrlInfoTitleExtractor(buf))
-			parser.setHeuristics(Heuristics.ICU)
 
 			val limInput = new LimitedInputStream(input, main.context.config.dlLimit)
 			val xmlSource =
 				if (httpCharset.isDefined) {
+					parser.setHeuristics(Heuristics.NONE)
 					new InputSource(new InputStreamReader(limInput, httpCharset.get))
 				} else {
+					parser.setHeuristics(Heuristics.ICU)
 					new InputSource(limInput)
 				}
 
