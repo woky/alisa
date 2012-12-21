@@ -3,7 +3,7 @@ import sbt.Keys._
 
 object AlisaBuild extends Build {
 
-	val scalaVer = "2.10.0-RC3"
+	val scalaVer = "2.10.0"
 
 	val projectInfo = Seq(
 		name := "alisa",
