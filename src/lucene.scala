@@ -89,10 +89,7 @@ final class LuceneService @Inject()(config: LuceneConfig) extends Service {
 	import LuceneCommon._
 	import LuceneCommon.FieldNames._
 
-	val analyzer = {
-		val famap = FIELD_ANALYZERS_MAP + (MSG -> config.messageAnalyzer)
-		new PerFieldAnalyzerWrapper(DEFAULT_ANALYZER, famap)
-	}
+	val analyzer = createAnalyzer(config.messageAnalyzer)
 
 	private val writer = {
 		val wc = new IndexWriterConfig(LUCENE_VERSION, analyzer)
