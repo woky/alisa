@@ -15,9 +15,11 @@ import com.google.inject.{Inject, AbstractModule}
 import com.google.inject.multibindings.Multibinder
 import beans.BeanProperty
 import org.apache.lucene.document._
-import java.io.File
+import java.io.{Reader, File}
 import javax.inject.Singleton
 import org.apache.lucene.queryparser.classic.QueryParser.Operator
+import org.apache.lucene.analysis.util.CharTokenizer
+import org.apache.lucene.analysis.Analyzer.TokenStreamComponents
 
 object LuceneCommon {
 
@@ -43,7 +45,14 @@ object LuceneCommon {
 
 	def createFieldAnalyzerMap = {
 		val kw = new KeywordAnalyzer
-		val simple = new SimpleAnalyzer(LUCENE_VERSION)
+		val simple: Analyzer = new Analyzer {
+			def createComponents(fieldName: String, reader: Reader) =
+				new TokenStreamComponents(new CharTokenizer(LUCENE_VERSION, reader) {
+					def isTokenChar(c: Int) = true
+					override def normalize(c: Int) = Character.toLowerCase(c)
+				})
+		}
+
 		Map(FieldNames.TIME -> kw,
 			FieldNames.NET -> simple,
 			FieldNames.CHAN -> simple,
