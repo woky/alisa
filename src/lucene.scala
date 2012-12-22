@@ -183,7 +183,7 @@ final class LuceneService @Inject()(config: LuceneConfig) extends Service {
 		doc.add(new LongField(TIME, msg.time, Field.Store.YES))
 		doc.add(new StringField(NET, msg.channel.network, Field.Store.YES))
 		doc.add(new StringField(CHAN, msg.channel.channel, Field.Store.YES))
-		doc.add(new TextField(NICK, msg.nick, Field.Store.YES))
+		doc.add(new StringField(NICK, msg.nick, Field.Store.YES))
 		doc.add(new StringField(USER, msg.user, Field.Store.YES))
 		doc.add(new StringField(HOST, msg.host, Field.Store.YES))
 		doc.add(new TextField(MSG, msg.message, Field.Store.YES))
