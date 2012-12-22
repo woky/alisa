@@ -180,7 +180,7 @@ final class LuceneService @Inject()(config: LuceneConfig) extends Service {
 
 	def addMessage(msg: LuceneMessage) {
 		val doc = new Document
-		doc.add(new IntField(TIME, (msg.time / 1000).toInt, Field.Store.YES)) // TODO LongFiled
+		doc.add(new LongField(TIME, msg.time, Field.Store.YES))
 		doc.add(new StringField(NET, msg.channel.network, Field.Store.YES))
 		doc.add(new StringField(CHAN, msg.channel.channel, Field.Store.YES))
 		doc.add(new TextField(NICK, msg.nick, Field.Store.YES))

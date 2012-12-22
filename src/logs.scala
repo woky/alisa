@@ -77,7 +77,7 @@ object LogsCommon {
 	}
 
 	def formatTextResult(msg: LuceneStoredMessage) = {
-		val time = DATE_FORMAT.format(new Date(msg.stored.time * 1000)) // TODO LongField
+		val time = DATE_FORMAT.format(new Date(msg.stored.time))
 		s"$time <${msg.stored.nick}> ${msg.stored.message}"
 	}
 }
