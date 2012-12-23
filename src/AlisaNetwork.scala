@@ -5,12 +5,16 @@ import java.io.IOException
 import java.util.regex.Pattern
 import scala.Some
 import java.util.concurrent.Executors
-import java.nio.charset.Charset
+import java.nio.charset.{CharsetDecoder, Charset}
+import java.nio.CharBuffer
+import com.ibm.icu.text.CharsetDetector
+import com.google.common.cache.{CacheLoader, CacheBuilder}
 
 object AlisaNetworkCommon {
 
 	final val DEFAULT_CHARSET_NAME = "latin1"
 	final val DEFAULT_CHARSET = Charset.forName(DEFAULT_CHARSET_NAME)
+	final val MAX_CACHED_DECODERS = 16
 }
 
 class AlisaNetwork(val globalConf: GlobalConfig,
@@ -24,6 +28,13 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	val eventContext = IrcEventContext(networkConf.name, this)
 	val executor = Executors.newSingleThreadExecutor
 
+	private val decoders = CacheBuilder.newBuilder
+			.maximumSize(MAX_CACHED_DECODERS)
+			.build[String, CharsetDecoder](
+		new CacheLoader[String, CharsetDecoder] {
+			def load(charsetName: String) = Charset.forName(charsetName).newDecoder
+		})
+
 	setVerbose(globalConf.verbose)
 	setName(networkConf.nick)
 	setLogin(getName)
@@ -36,7 +47,9 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	else
 		networkReconnect
 
-	override def onMessage(channel: String, sender: String, login: String, hostname: String, message: String) {
+	override def onMessage(channel: String, sender: String, login: String, hostname: String, rawMessage: String) {
+		val message = decodeMessage(rawMessage)
+
 		parseCommand(message) match {
 			case Some((command, args)) => {
 				val event = IrcCommandEvent(eventContext, channel, sender, login, hostname, command, args)
@@ -49,7 +62,9 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 		}
 	}
 
-	override def onAction(sender: String, login: String, hostname: String, target: String, action: String) {
+	override def onAction(sender: String, login: String, hostname: String, target: String, rawAction: String) {
+		val action = decodeMessage(rawAction)
+
 		val event = IrcActionEvent(eventContext, sender, login, hostname, target, action)
 		handleEventAsync(event, handlerLists.action.list)
 	}
@@ -129,4 +144,19 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	}
 
 	override protected def logMsg(msg: => String) = "[" + networkConf.name + "] " + msg
+
+	def decodeMessage(msg: String) = {
+		logDebug("Decoding message \"" + msg + "\"")
+
+		val bbuf = DEFAULT_CHARSET.newEncoder.encode(CharBuffer.wrap(msg))
+		val detector = new CharsetDetector
+		detector.setText(new ByteBufferInputStream(bbuf.asReadOnlyBuffer))
+		val csName = detector.detect.getName
+		logDebug(s"Detected charset: $csName")
+
+		val newMsg = decoders.get(csName).decode(bbuf).toString
+		logDebug("Decoded message \"" + newMsg + "\"")
+
+		newMsg
+	}
 }
