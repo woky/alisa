@@ -189,8 +189,6 @@ final class LimitedInputStream(input: InputStream, private var limit: Long) exte
 
 final class ByteBufferInputStream(buf: ByteBuffer) extends InputStream {
 
-	private var markPos: Int = -1
-
 	def read = synchronized {
 		if (buf.hasRemaining)
 			buf.get
@@ -214,15 +212,13 @@ final class ByteBufferInputStream(buf: ByteBuffer) extends InputStream {
 
 	override def mark(readlimit: Int) {
 		synchronized {
-			markPos = buf.position
+			buf.mark
 		}
 	}
 
 	override def reset {
 		synchronized {
-			if (markPos < 0)
-				throw new IOException("Mark not set")
-			buf.position(markPos)
+			buf.reset
 		}
 	}
 
