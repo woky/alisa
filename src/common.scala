@@ -2,9 +2,10 @@ package alisa
 
 import org.slf4j.LoggerFactory
 import java.util.regex.Pattern
-import java.io.{IOException, InputStream}
+import java.io.InputStream
 import com.google.inject.Module
 import java.nio.ByteBuffer
+import java.awt.event.KeyEvent
 
 trait Service {
 
@@ -126,6 +127,27 @@ object Util {
 
 		iter(mkArgs(line.trim, None, regex = WS_SPLIT_REGEX), Map())
 	}
+
+	def escapeNonPrintable(s: String): CharSequence = {
+		val sb = new StringBuilder(s.length * 2)
+		for (c <- s)
+			sb.append(escapeNonPrintable(c))
+		sb
+	}
+
+	def escapeNonPrintable(c: Char) =
+		if (isPrintable(c))
+			c
+		else
+			"\\u%04X".format(c.toShort)
+
+	def isPrintable(c: Char) =
+		if (Character.isISOControl(c) || c == KeyEvent.CHAR_UNDEFINED) {
+			false
+		} else {
+			val block = Character.UnicodeBlock.of(c)
+			block != null && block != Character.UnicodeBlock.SPECIALS
+		}
 }
 
 final class LimitedInputStream(input: InputStream, private var limit: Long) extends InputStream {

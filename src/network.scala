@@ -138,7 +138,8 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	override protected def logMsg(msg: => String) = "[" + networkConf.name + "] " + msg
 
 	def decodeMessage(msg: String) = {
-		logDebug("Decoding message \"" + msg + "\"")
+		logDebug("Decoding message \"" + Util.escapeNonPrintable(msg) + "\"")
+
 
 		val bbuf = DEFAULT_CHARSET.newEncoder.encode(CharBuffer.wrap(msg))
 		val detector = new CharsetDetector
