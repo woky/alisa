@@ -78,7 +78,11 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	def handleEventAsync[E <: IrcEvent](event: E, handlers: List[IrcEventHandler[E]]) {
 		executor.submit(new Runnable {
 			def run {
-				handleEvent(event, handlers)
+				try {
+					handleEvent(event, handlers)
+				} catch {
+					case e: Throwable => logError("Exception while handling event " + event, e)
+				}
 			}
 		})
 	}
