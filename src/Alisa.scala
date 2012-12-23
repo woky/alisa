@@ -105,10 +105,6 @@ object Alisa extends Logger {
 		val lc = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
 		lc.reset
 
-		LogManager.getLogManager.reset
-		SLF4JBridgeHandler.install
-		JULLogger.getLogger(JULLogger.GLOBAL_LOGGER_NAME).setLevel(JULLevel.FINEST)
-
 		val listener = new ch.qos.logback.classic.jul.LevelChangePropagator
 		listener.setContext(lc)
 		lc.addListener(listener)
@@ -140,5 +136,9 @@ object Alisa extends Logger {
 		}
 
 		lc.start
+
+		LogManager.getLogManager.reset
+		SLF4JBridgeHandler.install
+		JULLogger.getLogger(JULLogger.GLOBAL_LOGGER_NAME).setLevel(JULLevel.FINEST)
 	}
 }
