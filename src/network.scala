@@ -5,10 +5,9 @@ import java.io.IOException
 import java.util.regex.Pattern
 import scala.Some
 import java.util.concurrent.Executors
-import java.nio.charset.{CharsetDecoder, Charset}
+import java.nio.charset.Charset
 import java.nio.CharBuffer
 import com.ibm.icu.text.CharsetDetector
-import com.google.common.cache.{CacheLoader, CacheBuilder}
 
 object AlisaNetworkCommon {
 
@@ -28,12 +27,6 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 
 	private var destroy = false
 	private val executor = Executors.newSingleThreadExecutor
-	private val decoders = CacheBuilder.newBuilder
-			.maximumSize(MAX_CACHED_DECODERS)
-			.build[String, CharsetDecoder](
-		new CacheLoader[String, CharsetDecoder] {
-			def load(charsetName: String) = Charset.forName(charsetName).newDecoder
-		})
 
 	setVerbose(globalConf.verbose)
 	setName(networkConf.nick)
@@ -154,7 +147,7 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 		val csName = detector.detect.getName
 		logDebug(s"Detected charset: $csName")
 
-		val newMsg = decoders.get(csName).decode(bbuf).toString
+		val newMsg = Charset.forName(csName).decode(bbuf).toString
 		logDebug("Decoded message \"" + newMsg + "\"")
 
 		newMsg
