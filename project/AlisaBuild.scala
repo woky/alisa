@@ -56,6 +56,7 @@ object AlisaBuild extends Build {
 			scalaVersion := scalaVer,
 			scalaSource in Compile <<= baseDirectory / "src",
 			javaSource in Compile <<= baseDirectory / "src",
+			resourceDirectory in Compile <<= baseDirectory / "resources",
 			libraryDependencies ++= deps,
 			ivyXML := ivyExcl,
 			exportJars := true,
