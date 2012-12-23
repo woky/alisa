@@ -20,7 +20,8 @@ object TestConfig extends Config(
 		Lucene("/tmp/alisa-test"),
 		Cointoss,
 		Logs(),
-        Love(),
+		Love(),
 		UrlInfo()
-	)
+	),
+	global = GlobalConfig(verbose = true)
 )
