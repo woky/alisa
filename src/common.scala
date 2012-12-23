@@ -130,7 +130,7 @@ object Util {
 
 final class LimitedInputStream(input: InputStream, private var limit: Long) extends InputStream {
 
-	def read: Int = {
+	def read: Int = synchronized {
 		if (limit <= 0)
 			return -1
 
@@ -139,16 +139,7 @@ final class LimitedInputStream(input: InputStream, private var limit: Long) exte
 		b
 	}
 
-	override def read(b: Array[Byte]): Int = {
-		if (limit <= 0)
-			return -1
-
-		val readLen = input.read(b)
-		limit -= readLen
-		readLen
-	}
-
-	override def read(b: Array[Byte], off: Int, len: Int): Int = {
+	override def read(b: Array[Byte], off: Int, len: Int): Int = synchronized {
 		if (limit <= 0)
 			return -1
 
@@ -157,16 +148,16 @@ final class LimitedInputStream(input: InputStream, private var limit: Long) exte
 		readLen
 	}
 
-	override def skip(n: Long): Long = {
+	override def skip(n: Long): Long = synchronized {
 		if (limit <= 0)
 			return 0
 
-		val readLen = skip(n)
+		val readLen = input.skip(n)
 		limit -= readLen
 		readLen
 	}
 
-	override def available: Int = {
+	override def available: Int = synchronized {
 		if (limit <= 0)
 			return 0
 
@@ -174,18 +165,26 @@ final class LimitedInputStream(input: InputStream, private var limit: Long) exte
 	}
 
 	override def close {
-		input.close
+		synchronized {
+			input.close
+		}
 	}
 
 	override def mark(readlimit: Int) {
-		input.mark(readlimit)
+		synchronized {
+			input.mark(readlimit)
+		}
 	}
 
 	override def reset {
-		input.reset
+		synchronized {
+			input.reset
+		}
 	}
 
-	override def markSupported = input.markSupported
+	override def markSupported = synchronized {
+		input.markSupported
+	}
 }
 
 final class ByteBufferInputStream(buf: ByteBuffer) extends InputStream {
