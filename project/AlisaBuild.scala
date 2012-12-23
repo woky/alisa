@@ -15,7 +15,7 @@ object AlisaBuild extends Build {
 		"pircbot" % "pircbot" % "1.5.0",
 		"org.apache.httpcomponents" % "httpclient" % "4.2.1",
 		"nu.validator.htmlparser" % "htmlparser" % "1.4",
-		"com.ibm.icu" % "icu4j" % "49.1",
+		"com.ibm.icu" % "icu4j" % "50.1.1",
 		"org.slf4j" % "slf4j-api" % "1.7.2",
 		"org.slf4j" % "jcl-over-slf4j" % "1.7.2",
 		"org.slf4j" % "log4j-over-slf4j" % "1.7.2",
