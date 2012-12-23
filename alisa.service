@@ -7,7 +7,6 @@ User=alisa
 Group=alisa
 WorkingDirectory=/var/lib/alisa
 ExecStart=/usr/java/latest/bin/java -Xmx400m -jar /usr/share/alisa.jar /etc/alisa.conf
-KillSignal=SIGINT
 
 [Install]
 WantedBy=multi-user.target

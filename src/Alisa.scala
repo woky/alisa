@@ -7,6 +7,7 @@ import org.slf4j.bridge.SLF4JBridgeHandler
 import scala.collection.JavaConversions._
 import com.google.inject._
 import multibindings.Multibinder
+import sun.misc.{SignalHandler, Signal}
 
 object Alisa extends Logger {
 
@@ -15,6 +16,15 @@ object Alisa extends Logger {
 	SLF4JBridgeHandler.install()
 
 	def main(args: Array[String]) {
+		val termHandler = new SignalHandler {
+			def handle(sig: Signal) {
+				System.exit(0) // just override exit code to 0
+			}
+		}
+
+		Signal.handle(new Signal("TERM"), termHandler)
+		Signal.handle(new Signal("INT"), termHandler)
+
 		val config = if (args.length > 0) {
 			loadConfig(args(0))
 		} else {
