@@ -56,6 +56,8 @@ object Alisa extends Logger {
 
 		if (verbose.isDefined)
 			config = config.copy(global = config.global.copy(verbose = verbose.get))
+		else if (config.global.verbose)
+			initLogging(true)
 
 		// empty sets
 		val emptyMod = new AbstractModule {
