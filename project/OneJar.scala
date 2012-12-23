@@ -72,6 +72,8 @@ object OneJar {
 				for (depJar <- libJars)
 					addJarFile(output, depJar)
 
+				addJarStream(output, appInput)
+
 				for (svc <- services) {
 					svc match {
 						case (path, content) => {
@@ -81,8 +83,6 @@ object OneJar {
 						}
 					}
 				}
-
-				addJarStream(output, appInput)
 			} finally {
 				output.close
 			}
