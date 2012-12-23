@@ -4,7 +4,7 @@ import org.jibble.pircbot.{IrcException, PircBot}
 import java.io.IOException
 import java.util.regex.Pattern
 import scala.Some
-import java.util.concurrent.Executors
+import java.util.concurrent.{Executors, ExecutorService, TimeUnit}
 import java.nio.charset.Charset
 import java.nio.CharBuffer
 import com.ibm.icu.text.CharsetDetector
@@ -25,7 +25,7 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	val eventContext = IrcEventContext(networkConf.name, this)
 
 	private var destroy = false
-	private val executor = Executors.newSingleThreadExecutor
+	private var executor: ExecutorService = _
 
 	setVerbose(globalConf.verbose)
 	setName(networkConf.nick)
@@ -98,6 +98,8 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 
 	def networkDisconnect {
 		synchronized {
+			shutdownExecutor
+
 			disconnect
 			dispose
 
@@ -108,6 +110,11 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 
 	private def networkReconnect {
 		synchronized {
+			logDebug("Reconnecting")
+
+			shutdownExecutor
+			executor = Executors.newSingleThreadExecutor
+
 			while (!destroy) {
 				for {
 					server <- networkConf.servers
@@ -133,6 +140,16 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 				}
 			}
 		}
+	}
+
+	private def shutdownExecutor {
+		logDebug("Halting background tasks")
+		if (executor != null && !executor.isTerminated) {
+			executor.shutdownNow
+			executor.awaitTermination(Long.MaxValue, TimeUnit.MILLISECONDS)
+			executor = null
+		}
+		logDebug("Done")
 	}
 
 	override protected def logMsg(msg: => String) = "[" + networkConf.name + "] " + msg
