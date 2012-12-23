@@ -20,7 +20,6 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	setLogin(getName)
 	setFinger(networkConf.finger)
 	setVersion(getFinger)
-	setEncoding(IrcCharsetCommon.CHARSET_NAME)
 
 	if (networkConf.servers.isEmpty)
 		logWarn("No servers for network " + networkConf.name)
