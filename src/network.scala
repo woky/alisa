@@ -147,9 +147,14 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 		val csName = detector.detect.getName
 		logDebug(s"Detected charset: $csName")
 
-		val newMsg = Charset.forName(csName).decode(bbuf).toString
-		logDebug("Decoded message \"" + newMsg + "\"")
-
-		newMsg
+		val charset = Charset.forName(csName)
+		if (charset == DEFAULT_CHARSET) {
+			logDebug("Not decoding")
+			msg
+		} else {
+			val newMsg = Charset.forName(csName).decode(bbuf).toString
+			logDebug("Decoded message \"" + newMsg + "\"")
+			newMsg
+		}
 	}
 }
