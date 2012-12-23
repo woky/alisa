@@ -5,10 +5,19 @@ import java.io.IOException
 import java.util.regex.Pattern
 import scala.Some
 import java.util.concurrent.Executors
+import java.nio.charset.Charset
+
+object AlisaNetworkCommon {
+
+	final val DEFAULT_CHARSET_NAME = "latin1"
+	final val DEFAULT_CHARSET = Charset.forName(DEFAULT_CHARSET_NAME)
+}
 
 class AlisaNetwork(val globalConf: GlobalConfig,
                    val networkConf: NetworkConfig,
                    val handlerLists: IrcEventHandlerLists) extends PircBot with Logger {
+
+	import AlisaNetworkCommon._
 
 	private var destroy = false
 	val cmdRegex: Pattern = Pattern.compile(s"^${networkConf.nick}\\s*[:, ]\\s*(\\S+)(?:\\s+(.+))?\\s*$$")
@@ -20,6 +29,7 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	setLogin(getName)
 	setFinger(networkConf.finger)
 	setVersion(getFinger)
+	setEncoding(DEFAULT_CHARSET_NAME)
 
 	if (networkConf.servers.isEmpty)
 		logWarn("No servers for network " + networkConf.name)
