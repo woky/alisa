@@ -2,7 +2,7 @@ package alisa
 
 import org.slf4j.LoggerFactory
 import java.util.regex.Pattern
-import java.io.InputStream
+import java.io.{IOException, InputStream}
 import com.google.inject.Module
 import java.nio.ByteBuffer
 
@@ -189,6 +189,8 @@ final class LimitedInputStream(input: InputStream, private var limit: Long) exte
 
 final class ByteBufferInputStream(buf: ByteBuffer) extends InputStream {
 
+	private var markPos: Int = -1
+
 	def read = synchronized {
 		if (buf.hasRemaining)
 			buf.get
@@ -209,4 +211,20 @@ final class ByteBufferInputStream(buf: ByteBuffer) extends InputStream {
 	override def available() = synchronized {
 		buf.remaining
 	}
+
+	override def mark(readlimit: Int) {
+		synchronized {
+			markPos = buf.position
+		}
+	}
+
+	override def reset {
+		synchronized {
+			if (markPos < 0)
+				throw new IOException("Mark not set")
+			buf.position(markPos)
+		}
+	}
+
+	override def markSupported = true
 }
