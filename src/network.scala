@@ -122,9 +122,9 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 					_ <- 0 until server.reconnTries
 				} {
 					try {
-						logDebug("Connecting to " + server)
+						logInfo("Connecting to " + server)
 						connect(server.host, server.port)
-						logDebug("Connected")
+						logInfo("Connected")
 
 						for (chan <- networkConf.channels)
 							joinChannel(chan.name)
