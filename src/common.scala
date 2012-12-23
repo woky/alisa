@@ -4,6 +4,7 @@ import org.slf4j.LoggerFactory
 import java.util.regex.Pattern
 import java.io.InputStream
 import com.google.inject.Module
+import java.nio.ByteBuffer
 
 trait Service {
 
@@ -185,4 +186,28 @@ final class LimitedInputStream(input: InputStream, private var limit: Long) exte
 	}
 
 	override def markSupported = input.markSupported
+}
+
+final class ByteBufferInputStream(buf: ByteBuffer) extends InputStream {
+
+	def read = synchronized {
+		if (buf.hasRemaining)
+			buf.get
+		else
+			-1
+	}
+
+	override def read(b: Array[Byte], off: Int, len: Int): Int = synchronized {
+		val len = Math.min(len, buf.remaining)
+		buf.get(b, off, len)
+		len
+	}
+
+	override def skip(n: Long) = synchronized {
+		buf.position(buf.position + Math.min(n.toInt, buf.remaining)).position
+	}
+
+	override def available() = synchronized {
+		buf.remaining
+	}
 }
