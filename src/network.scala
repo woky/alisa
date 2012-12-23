@@ -13,7 +13,6 @@ object AlisaNetworkCommon {
 
 	final val DEFAULT_CHARSET_NAME = "latin1"
 	final val DEFAULT_CHARSET = Charset.forName(DEFAULT_CHARSET_NAME)
-	final val MAX_CACHED_DECODERS = 16
 }
 
 class AlisaNetwork(val globalConf: GlobalConfig,
