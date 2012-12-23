@@ -138,5 +138,7 @@ object Alisa extends Logger {
 			val ourLogger = LoggerFactory.getLogger(getClass.getPackage.getName).asInstanceOf[LBLogger]
 			ourLogger.setLevel(Level.DEBUG)
 		}
+
+		lc.start
 	}
 }
