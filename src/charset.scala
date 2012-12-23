@@ -39,7 +39,7 @@ final class IrcCharsetDecoder(cs: Charset) extends CharsetDecoder(cs, 1f, 1f) {
 	// probably not very efficient
 	def decodeLoop(in: ByteBuffer, out: CharBuffer) = {
 		val detector = new CharsetDetector
-		detector.setText(new ByteBufferInputStream(in))
+		detector.setText(new ByteBufferInputStream(in.asReadOnlyBuffer))
 		val csMatch = detector.detect
 		decoders.get(csMatch.getName).decode(in, out, true)
 	}
