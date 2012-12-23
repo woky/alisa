@@ -23,11 +23,11 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 
 	import AlisaNetworkCommon._
 
-	private var destroy = false
 	val cmdRegex: Pattern = Pattern.compile(s"^${networkConf.nick}\\s*[:, ]\\s*(\\S+)(?:\\s+(.+))?\\s*$$")
 	val eventContext = IrcEventContext(networkConf.name, this)
-	val executor = Executors.newSingleThreadExecutor
 
+	private var destroy = false
+	private val executor = Executors.newSingleThreadExecutor
 	private val decoders = CacheBuilder.newBuilder
 			.maximumSize(MAX_CACHED_DECODERS)
 			.build[String, CharsetDecoder](
