@@ -32,7 +32,7 @@ object UrlInfoCommon {
 
 	final val MAX_URL_INFO_LENGTH = 512
 	final val IGNORE_URLS_REGEX = Pattern.compile("(^|\\s)!nl($|\\s)")
-	final val URL_REGEX = Pattern.compile("(?:^|[^!])(https?://\\S+)")
+	final val URL_REGEX = Pattern.compile("(?:^|[^!])(?:<(https?://[^>]+)>|(https?://\\S+))")
 	final val CHARSET_REGEX = Pattern.compile("charset=(\\S+)")
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val CTTYPE_HEADER = "Content-Type"
@@ -180,7 +180,13 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 
 			breakable {
 				val uri = try {
-					val opt = parseUri(matcher.group)
+					val group =
+						if (matcher.group(1) != null)
+							matcher.group(1)
+						else
+							matcher.group(2)
+
+					val opt = parseUri(group)
 					if (opt.isEmpty)
 						break
 					opt.get
