@@ -1,6 +1,6 @@
 package alisa
 
-import java.util.regex.Pattern
+import java.util.regex.{Matcher, Pattern}
 import javax.net.ssl.{X509TrustManager, TrustManager, SSLContext}
 import java.security.cert.X509Certificate
 import org.apache.http.conn.ssl.SSLSocketFactory
@@ -28,11 +28,11 @@ import Util._
 import com.google.inject.multibindings.Multibinder
 import javax.inject.Singleton
 
-object UrlInfoCommon {
+object UrlInfoCommon extends Logger {
 
 	final val MAX_URL_INFO_LENGTH = 512
-	final val IGNORE_URLS_REGEX = Pattern.compile("(^|\\s)!nl($|\\s)")
-	final val URL_REGEX = Pattern.compile("(?:^|[^!])(?:<(https?://[^>]+)>|(https?://\\S+))")
+	final val IGNORE_URLS_REGEX = Pattern.compile("(^|\\s)!nl($|\\s)") // TODO find in prase loop
+	final val URL_PROTO_REGEX = Pattern.compile("\\bhttps?\\b")
 	final val CHARSET_REGEX = Pattern.compile("charset=(\\S+)")
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val CTTYPE_HEADER = "Content-Type"
@@ -57,6 +57,101 @@ object UrlInfoCommon {
 		schemes.register(new Scheme("https", 443, sslSockFactory))
 
 		schemes
+	}
+
+	def findUrls(line: String) = {
+		def iter(results: List[URI], matcher: Matcher, start: Int, noEndQuote: Boolean): List[URI] = {
+			def addUri(results: List[URI], s: String): List[URI] =
+				parseUri(s) match {
+					case Some(uri) => uri :: results
+					case None => results
+				}
+
+			if (matcher.find(start)) {
+				val (mStart, mEnd) = (matcher.start, matcher.end)
+
+				if (mStart == 0 || line.charAt(mStart - 1) != '!') {
+					if (mStart != 0 && line.charAt(mStart - 1) == '<') {
+						if (noEndQuote) {
+							iter(results, matcher, mEnd, noEndQuote)
+						} else {
+							val quoteEnd = line.indexOf('>', mEnd)
+							if (quoteEnd < 0) {
+								iter(results, matcher, mEnd, false)
+							} else {
+								val newResults = addUri(results, line.substring(mStart, quoteEnd))
+								iter(newResults, matcher, quoteEnd + 1, noEndQuote)
+							}
+						}
+					} else {
+						val urlEnd = {
+							val pos = line.indexWhere(c => Character.isWhitespace(c) || c == '<' || c == '>', mEnd)
+							if (pos < 0)
+								line.length - 1
+							else
+								pos
+						}
+						val newResults = addUri(results, line.substring(mStart, urlEnd))
+						iter(newResults, matcher, urlEnd + 1, noEndQuote)
+					}
+				} else {
+					iter(results, matcher, mEnd, noEndQuote)
+				}
+			} else {
+				results
+			}
+		}
+
+		iter(Nil, URL_PROTO_REGEX.matcher(line), 0, false)
+	}
+
+	/*
+	 * This sucks because HttpClient accepts only java.net.URI, URL#toURI()
+	 * is broken (doesn't encode path & query) and URI constructor encodes
+	 * path & query so we need to decode it first so already encoded parts
+	 * will not be encoded twice.
+	 */
+	def parseUri(s: String): Option[URI] = {
+		val url = try {
+			new URL(s)
+		} catch {
+			case e: MalformedURLException => {
+				logWarn("Couldn't parse URL " + s, e)
+				return None
+			}
+		}
+
+		def decodePart(s: String): String = {
+			if (s == null)
+				null
+			else
+				URLDecoder.decode(s, "utf-8")
+		}
+
+		val (path, query) = try {
+			(decodePart(url.getPath), decodePart(url.getQuery))
+		} catch {
+			case e: IllegalArgumentException => {
+				logWarn("Couldn't decode URL " + s, e)
+				return None
+			}
+		}
+
+		val uri = try {
+			new URI(
+				url.getProtocol,
+				url.getAuthority,
+				path,
+				query,
+				null)
+		} catch {
+			case e: URISyntaxException => {
+				logWarn("Couldn't create URI " + s, e)
+				return None
+			}
+		}
+
+		Some(uri)
 	}
 }
 
@@ -120,78 +215,14 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 
 	import UrlInfoCommon._
 
-	/*
-	 * This sucks because HttpClient accepts only java.net.URI, URL#toURI()
-	 * is broken (doesn't encode path & query) and URI constructor encodes
-	 * path & query so we need to decode it first so already encoded parts
-	 * will not be encoded twice.
-	 */
-	private def parseUri(s: String): Option[URI] = {
-		val url = try {
-			new URL(s)
-		} catch {
-			case e: MalformedURLException => {
-				logWarn("Couldn't parse URL " + s, e)
-				return None
-			}
-		}
-
-		def decodePart(s: String): String = {
-			if (s == null)
-				null
-			else
-				URLDecoder.decode(s, "utf-8")
-		}
-
-		val (path, query) = try {
-			(decodePart(url.getPath), decodePart(url.getQuery))
-		} catch {
-			case e: IllegalArgumentException => {
-				logWarn("Couldn't decode URL " + s, e)
-				return None
-			}
-		}
-
-		val uri = try {
-			new URI(
-				url.getProtocol,
-				url.getAuthority,
-				path,
-				query,
-				null)
-		} catch {
-			case e: URISyntaxException => {
-				logWarn("Couldn't create URI " + s, e)
-				return None
-			}
-		}
-
-		Some(uri)
-	}
-
 	def foreach[U](f: String => U) {
 		if (IGNORE_URLS_REGEX.matcher(message).find)
 			return
 
-		val matcher = URL_REGEX.matcher(message)
-
-		while (matcher.find) {
+		for (uri <- findUrls(message)) {
 			var msg: Option[CharSequence] = None
 
 			breakable {
-				val uri = try {
-					val group =
-						if (matcher.group(1) != null)
-							matcher.group(1)
-						else
-							matcher.group(2)
-
-					val opt = parseUri(group)
-					if (opt.isEmpty)
-						break
-					opt.get
-				}
-
 				val (response, getResp) = try {
 					val head = main.httpClient.execute(new HttpHead(uri))
 					val getStat = head.getStatusLine.getStatusCode
