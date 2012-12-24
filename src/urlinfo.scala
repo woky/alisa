@@ -77,7 +77,7 @@ object UrlInfoCommon extends Logger {
 						} else {
 							val quoteEnd = line.indexOf('>', mEnd)
 							if (quoteEnd < 0) {
-								iter(results, matcher, mEnd, false)
+								iter(results, matcher, mEnd, true)
 							} else {
 								val newResults = addUri(results, line.substring(mStart, quoteEnd))
 								iter(newResults, matcher, quoteEnd + 1, noEndQuote)
