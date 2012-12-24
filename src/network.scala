@@ -14,7 +14,7 @@ import scala.collection.JavaConversions._
 object AlisaNetworkCommon {
 
 	final val CHARSET_NAME = "pircbot_charset_hack"
-	final val INPUT_CHARSET_NAME = "latin1"
+	final val INPUT_CHARSET_NAME = "ISO-8859-1"
 	final val INPUT_CHARSET = Charset.forName(INPUT_CHARSET_NAME)
 	final val OUTPUT_CHARSET = Charset.forName("utf-8")
 }
@@ -165,20 +165,25 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	def decodeMessage(msg: String) = {
 		logDebug("Decoding message \"" + Util.escapeNonPrintable(msg) + "\"")
 
-		val bbuf = INPUT_CHARSET.newEncoder.encode(CharBuffer.wrap(msg))
-		val detector = new CharsetDetector
-		detector.setText(new ByteBufferInputStream(bbuf.asReadOnlyBuffer))
-		val csName = detector.detect.getName
-		logDebug(s"Detected charset: $csName")
-
-		val charset = Charset.forName(csName)
-		if (charset == INPUT_CHARSET_NAME) {
-			logDebug("Not decoding")
+		if (msg.forall(_ < 0x80)) {
+			logDebug("Not decoding ASCII message")
 			msg
 		} else {
-			val newMsg = Charset.forName(csName).decode(bbuf).toString
-			logDebug("Decoded message \"" + newMsg + "\"")
-			newMsg
+			val bbuf = INPUT_CHARSET.newEncoder.encode(CharBuffer.wrap(msg))
+			val detector = new CharsetDetector
+			detector.setText(new ByteBufferInputStream(bbuf.asReadOnlyBuffer))
+			val csName = detector.detect.getName
+			logDebug(s"Detected charset: $csName")
+
+			val charset = Charset.forName(csName)
+			if (charset == INPUT_CHARSET_NAME) {
+				logDebug("Not decoding")
+				msg
+			} else {
+				val newMsg = Charset.forName(csName).decode(bbuf).toString
+				logDebug("Decoded message \"" + newMsg + "\"")
+				newMsg
+			}
 		}
 	}
 }
