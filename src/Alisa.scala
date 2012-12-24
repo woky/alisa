@@ -69,7 +69,23 @@ object Alisa extends Logger {
 
 		val injector = Guice.createInjector(emptyMod :: config.modules: _*)
 
-		val services = injector.getInstance(Key.get(new TypeLiteral[java.util.Set[Service]] {}))
+		/*
+		 * TODO
+		 * If some service fails to start, Guice will throw exception so we'll
+		 * not be be able to access already started services that needs to be
+		 * shut down. For example there's Lucene write.lock file that needs to
+		 * be removed.
+		 */
+		val services = try {
+			injector.getInstance(Key.get(new TypeLiteral[java.util.Set[Service]] {}))
+		} catch {
+			case e: Throwable => {
+				logError("Error while creating services. Shutting down.", e)
+				System.exit(1)
+				return // make compiler happy
+			}
+		}
+
 		sys.addShutdownHook {
 			for (s <- services)
 				try {
