@@ -189,20 +189,20 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 
 object AlisaNetworkCharset extends Charset(AlisaNetworkCommon.CHARSET_NAME, Array()) {
 
-       def contains(cs: Charset) = false // XXX ?
+	def contains(cs: Charset) = false // XXX ?
 
-       def newDecoder = AlisaNetworkCommon.INPUT_CHARSET.newDecoder
+	def newDecoder = AlisaNetworkCommon.INPUT_CHARSET.newDecoder
 
-       def newEncoder = AlisaNetworkCommon.OUTPUT_CHARSET.newEncoder
+	def newEncoder = AlisaNetworkCommon.OUTPUT_CHARSET.newEncoder
 }
 
 final class AlisaNetworkCharsetProvider extends CharsetProvider {
 
-       def charsets = List(AlisaNetworkCommon.CHARSET).iterator
+	val charsets = List(AlisaNetworkCommon.CHARSET).iterator
 
-       def charsetForName(charsetName: String) =
-	       if (charsetName == AlisaNetworkCommon.CHARSET_NAME)
-		       AlisaNetworkCharset
-	       else
-		       null
+	def charsetForName(charsetName: String) =
+		if (charsetName == AlisaNetworkCommon.CHARSET_NAME)
+			AlisaNetworkCharset
+		else
+			null
 }
