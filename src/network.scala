@@ -176,7 +176,7 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 			logDebug(s"Detected charset: $csName")
 
 			val charset = Charset.forName(csName)
-			if (charset == INPUT_CHARSET_NAME) {
+			if (charset == INPUT_CHARSET) {
 				logDebug("Not decoding")
 				msg
 			} else {
