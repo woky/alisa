@@ -31,8 +31,9 @@ import javax.inject.Singleton
 object UrlInfoCommon extends Logger {
 
 	final val MAX_URL_INFO_LENGTH = 512
-	final val IGNORE_URLS_REGEX = Pattern.compile("(^|\\s)!nl($|\\s)") // TODO find in prase loop
-	final val URL_PROTO_REGEX = Pattern.compile("\\bhttps?\\b")
+	final val IGNORE_URLS_REGEX = Pattern.compile("(^|\\s)!nl($|\\s)")
+	// TODO find in prase loop
+	final val URL_PROTO_REGEX = Pattern.compile("\\bhttps?://")
 	final val CHARSET_REGEX = Pattern.compile("charset=(\\S+)")
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val CTTYPE_HEADER = "Content-Type"
@@ -60,49 +61,50 @@ object UrlInfoCommon extends Logger {
 	}
 
 	def findUrls(line: String) = {
-		def iter(results: List[URI], matcher: Matcher, start: Int, noEndQuote: Boolean): List[URI] = {
+		def iter(results: List[URI], matcher: Matcher, start: Int): List[URI] = {
 			def addUri(results: List[URI], s: String): List[URI] =
 				parseUri(s) match {
 					case Some(uri) => uri :: results
 					case None => results
 				}
 
-			if (matcher.find(start)) {
+			if (start < line.length && matcher.find(start)) {
 				val (mStart, mEnd) = (matcher.start, matcher.end)
 
-				if (mStart == 0 || line.charAt(mStart - 1) != '!') {
-					if (mStart != 0 && line.charAt(mStart - 1) == '<') {
-						if (noEndQuote) {
-							iter(results, matcher, mEnd, noEndQuote)
-						} else {
-							val quoteEnd = line.indexOf('>', mEnd)
-							if (quoteEnd < 0) {
-								iter(results, matcher, mEnd, true)
-							} else {
-								val newResults = addUri(results, line.substring(mStart, quoteEnd))
-								iter(newResults, matcher, quoteEnd + 1, noEndQuote)
-							}
-						}
-					} else {
-						val urlEnd = {
-							val pos = line.indexWhere(c => Character.isWhitespace(c) || c == '<' || c == '>', mEnd)
+				if (mStart == 0 || line(mStart - 1) != '!') {
+					val urlEnd =
+						if (mStart != 0 && line(mStart - 1) == '<') {
+							val pos = line.indexOf('>', mEnd)
 							if (pos < 0)
-								line.length - 1
+								line.length
 							else
 								pos
+						} else {
+							val wsPos = {
+								val pos = line.indexWhere(c => Character.isWhitespace(c), mEnd)
+								if (pos < 0)
+									line.length
+								else
+									pos
+							}
+							// don't match last dot in "I often visit http://www.zombo.com."
+							if (line(wsPos - 1) == '.')
+								wsPos - 1
+							else
+								wsPos
 						}
-						val newResults = addUri(results, line.substring(mStart, urlEnd))
-						iter(newResults, matcher, urlEnd + 1, noEndQuote)
-					}
+
+					val newResults = addUri(results, line.substring(mStart, urlEnd))
+					iter(newResults, matcher, urlEnd + 1)
 				} else {
-					iter(results, matcher, mEnd, noEndQuote)
+					iter(results, matcher, mEnd)
 				}
 			} else {
 				results
 			}
 		}
 
-		iter(Nil, URL_PROTO_REGEX.matcher(line), 0, false).reverse
+		iter(Nil, URL_PROTO_REGEX.matcher(line), 0).reverse
 	}
 
 	/*
