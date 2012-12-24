@@ -102,7 +102,7 @@ object UrlInfoCommon extends Logger {
 			}
 		}
 
-		iter(Nil, URL_PROTO_REGEX.matcher(line), 0, false)
+		iter(Nil, URL_PROTO_REGEX.matcher(line), 0, false).reverse
 	}
 
 	/*
