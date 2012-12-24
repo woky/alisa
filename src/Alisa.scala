@@ -75,7 +75,7 @@ object Alisa extends Logger {
 				try {
 					s.stop
 				} catch {
-					case e: Exception => e.printStackTrace
+					case e: Throwable => e.printStackTrace
 				}
 		}
 
@@ -84,9 +84,56 @@ object Alisa extends Logger {
 			config.handlers.foldRight(userHandlers.foldRight(DEFAULT_HANDLER_LISTS)(_ :: _))(_ :: _)
 		}
 
-		for (netConf <- config.networks) {
-			val alisaNet = new AlisaNetwork(config.global, netConf, handlers)
-			sys.addShutdownHook(alisaNet.networkDisconnect)
+		try {
+			val nets = createNetworks(config, handlers)
+			if (nets.isEmpty) {
+				logError("No networks created. Shutting down.")
+				System.exit(0)
+			} else {
+				sys.addShutdownHook(destroyNetworks(nets))
+			}
+		} catch {
+			case e: Throwable => {
+				logError("Error while creating networks. Shutting down.", e)
+				System.exit(1)
+			}
+		}
+	}
+
+	def createNetworks(config: Config, handlers: IrcEventHandlerLists): List[AlisaNetwork] = {
+		def iter(result: List[AlisaNetwork], netConfList: List[NetworkConfig]): List[AlisaNetwork] =
+			netConfList match {
+				case netConf :: xs =>
+					try {
+						iter(new AlisaNetwork(config.global, netConf, handlers) :: result, xs)
+					} catch {
+						case e: Throwable => {
+							logError("Exception while creating network " + netConfList.head, e)
+							e match {
+								case _: Exception => iter(result, xs)
+								case _ => { // Error
+									destroyNetworks(result)
+									throw e
+								}
+							}
+
+						}
+					}
+				case Nil => result
+			}
+
+		iter(Nil, config.networks.toList)
+	}
+
+	def destroyNetworks(networks: List[AlisaNetwork]) {
+		for (net <- networks) {
+			try {
+				net.networkDisconnect
+			} catch {
+				case e: Throwable => {
+					logError("Exception while destroying network " + net.networkConf, e)
+				}
+			}
 		}
 	}
 
