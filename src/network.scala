@@ -8,11 +8,18 @@ import java.util.concurrent.{Executors, ExecutorService, TimeUnit}
 import java.nio.charset.Charset
 import java.nio.CharBuffer
 import com.ibm.icu.text.CharsetDetector
+import java.nio.charset.spi.CharsetProvider
+import scala.collection.JavaConversions._
 
 object AlisaNetworkCommon {
 
-	final val DEFAULT_CHARSET_NAME = "latin1"
-	final val DEFAULT_CHARSET = Charset.forName(DEFAULT_CHARSET_NAME)
+	final val CHARSET_NAME = "pircbot_charset_hack"
+	final val CHARSET = Charset.forName(CHARSET_NAME)
+
+	final val INPUT_CHARSET_NAME = "latin1"
+	final val INPUT_CHARSET = Charset.forName(INPUT_CHARSET_NAME)
+
+	final val OUTPUT_CHARSET = Charset.forName("utf-8")
 }
 
 class AlisaNetwork(val globalConf: GlobalConfig,
@@ -32,7 +39,7 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 	setLogin(getName)
 	setFinger(networkConf.finger)
 	setVersion(getFinger)
-	setEncoding(DEFAULT_CHARSET_NAME)
+	setEncoding(CHARSET_NAME)
 
 	if (networkConf.servers.isEmpty)
 		logWarn("No servers for network " + networkConf.name)
@@ -162,14 +169,14 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 		logDebug("Decoding message \"" + Util.escapeNonPrintable(msg) + "\"")
 
 
-		val bbuf = DEFAULT_CHARSET.newEncoder.encode(CharBuffer.wrap(msg))
+		val bbuf = INPUT_CHARSET.newEncoder.encode(CharBuffer.wrap(msg))
 		val detector = new CharsetDetector
 		detector.setText(new ByteBufferInputStream(bbuf.asReadOnlyBuffer))
 		val csName = detector.detect.getName
 		logDebug(s"Detected charset: $csName")
 
 		val charset = Charset.forName(csName)
-		if (charset == DEFAULT_CHARSET) {
+		if (charset == INPUT_CHARSET_NAME) {
 			logDebug("Not decoding")
 			msg
 		} else {
@@ -178,4 +185,24 @@ class AlisaNetwork(val globalConf: GlobalConfig,
 			newMsg
 		}
 	}
+}
+
+object AlisaNetworkCharset extends Charset(AlisaNetworkCommon.CHARSET_NAME, Array()) {
+
+       def contains(cs: Charset) = false // XXX ?
+
+       def newDecoder = AlisaNetworkCommon.INPUT_CHARSET.newDecoder
+
+       def newEncoder = AlisaNetworkCommon.OUTPUT_CHARSET.newEncoder
+}
+
+final class AlisaNetworkCharsetProvider extends CharsetProvider {
+
+       def charsets = List(AlisaNetworkCommon.CHARSET).iterator
+
+       def charsetForName(charsetName: String) =
+	       if (charsetName == AlisaNetworkCommon.CHARSET_NAME)
+		       AlisaNetworkCharset
+	       else
+		       null
 }
