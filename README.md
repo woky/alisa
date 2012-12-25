@@ -11,7 +11,8 @@ What can it do?
 * Find URLs in messages and send brief info about them (title for HTML, content
   type and size for rest)
 
-* Log chat to Lucene and search it via chat or web
+* Log chat to Lucene and search it via chat or web (say "alisa: log" for help,
+  where _alisa_ is bot's current nick)
 
 * Hug
 
