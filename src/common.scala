@@ -128,26 +128,38 @@ object Util {
 		iter(mkArgs(line.trim, None, regex = WS_SPLIT_REGEX), Map())
 	}
 
-	def escapeNonPrintable(s: String): CharSequence = {
-		val sb = new StringBuilder(s.length * 2)
-		for (c <- s)
-			sb.append(escapeNonPrintable(c))
-		sb
-	}
 
-	def escapeNonPrintable(c: Char) =
-		if (isPrintable(c))
-			c
+	def escapeChar(c: Char, p: (Char) => Boolean) =
+		if (p(c))
+			c.toString
 		else
 			"\\u%04X".format(c.toShort)
 
-	def isPrintable(c: Char) =
+	def isPrintableUnicode(c: Char) =
 		if (Character.isISOControl(c) || c == KeyEvent.CHAR_UNDEFINED) {
 			false
 		} else {
 			val block = Character.UnicodeBlock.of(c)
 			block != null && block != Character.UnicodeBlock.SPECIALS
 		}
+
+	def escapeCharUnicode(c: Char) = escapeChar(c, isPrintableUnicode)
+
+	def isPrintableASCII(c: Char) = c < 0x80 && !Character.isISOControl(c)
+
+	def escapeCharASCII(c: Char) = escapeChar(c, isPrintableASCII)
+
+
+	def escapeString(s: String, ec: (Char) => String): CharSequence = {
+		val sb = new StringBuilder(s.length * 2)
+		for (c <- s)
+			sb.append(ec(c))
+		sb
+	}
+
+	def escapeStringUnicode(s: String): CharSequence = escapeString(s, escapeCharUnicode)
+
+	def escapeStringASCII(s: String): CharSequence = escapeString(s, escapeCharASCII)
 }
 
 final class LimitedInputStream(input: InputStream, private var limit: Long) extends InputStream {
