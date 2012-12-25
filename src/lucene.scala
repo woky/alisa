@@ -103,6 +103,7 @@ final class LuceneService @Inject()(config: LuceneConfig) extends Service {
 	private val writer = {
 		val wc = new IndexWriterConfig(LUCENE_VERSION, analyzer)
 		val writer = new IndexWriter(config.indexDir, wc)
+		writer.commit
 		writer
 	}
 
