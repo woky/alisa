@@ -42,7 +42,7 @@ You need JRE7.
 
 		java -jar target/alisa-VERSION.jar -d
 
-* Run as daemon via attached systemd service file
+* Run as daemon via included systemd service file
 
 TODO
 ----
