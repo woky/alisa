@@ -42,7 +42,17 @@ You need JRE7.
 
 		java -jar target/alisa-VERSION.jar -d
 
-* Run as daemon via included systemd service file
+* Run as daemon via included systemd service file (do following as root)
+
+		useradd -rU alisa
+		mkdir /var/lib/alisa
+		chown alisa:alisa /var/lib/alisa
+		chmod 700 /var/lib/alisa
+		cp target/alisa-VERSION.jar /usr/local/share/alisa.jar
+		cp alisa.conf /etc
+		cp alisa.service /etc/systemd/system
+		systemctl --system daemon-reload
+		systemctl restart alisa.service
 
 TODO
 ----
