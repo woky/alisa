@@ -27,6 +27,7 @@ import util.control.Breaks._
 import Util._
 import com.google.inject.multibindings.Multibinder
 import javax.inject.Singleton
+import org.apache.http.conn.HttpHostConnectException
 
 object UrlInfoCommon extends Logger {
 
@@ -155,6 +156,12 @@ object UrlInfoCommon extends Logger {
 
 		Some(uri)
 	}
+
+	def origNetEx(ex: Throwable) =
+		ex match {
+			case _: HttpHostConnectException => ex.getCause
+			case _ => ex
+		}
 }
 
 object UrlInfo {
@@ -237,7 +244,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 					}
 				} catch {
 					case e@(_: IOException | _: ClientProtocolException) => {
-						msg = Some("request failed: " + e)
+						msg = Some("request failed: " + origNetEx(e))
 						logWarn("Request failed for URI " + uri, e)
 						break
 						throw new IllegalStateException // XXX Scala 2.9
@@ -278,7 +285,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 									buf.append(getTitle(uri, ct, MAX_URL_INFO_LENGTH - buf.size, getResp))
 								} catch {
 									case e@(_: IOException | _: ClientProtocolException | _: SAXException) => {
-										msg = Some("failed to get/parse page: " + e)
+										msg = Some("failed to get/parse page: " + origNetEx(e))
 										e.printStackTrace
 										break
 									}
@@ -309,7 +316,6 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 			if (msg.isDefined)
 				f(msg.get.toString)
 		}
-
 	}
 
 	private def getTitle(uri: URI, ct: String, maxTitleLen: Int, getResp: Option[HttpResponse]): CharSequence = {
