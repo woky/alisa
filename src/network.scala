@@ -18,9 +18,9 @@ object AlisaNetworkCommon {
 	final val OUTPUT_CHARSET = Charset.forName("utf-8")
 }
 
-class AlisaNetwork(val globalConf: GlobalConfig,
-                   val networkConf: NetworkConfig,
-                   val handlerLists: IrcEventHandlerLists) extends PircBot with Logger {
+final class AlisaNetwork(globalConf: GlobalConfig,
+                         val networkConf: NetworkConfig,
+                         handlerLists: IrcEventHandlerLists) extends PircBot with Logger {
 
 	import AlisaNetworkCommon._
 
