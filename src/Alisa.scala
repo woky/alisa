@@ -124,7 +124,7 @@ object Alisa extends Logger {
 						iter(new AlisaNetwork(config.global, netConf, handlers) :: result, xs)
 					} catch {
 						case e: Throwable => {
-							logError("Exception while creating network " + netConfList.head, e)
+							logError("Exception while creating network " + netConf, e)
 							e match {
 								case _: Exception => iter(result, xs)
 								case _ => { // Error
