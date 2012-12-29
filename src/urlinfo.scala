@@ -31,7 +31,7 @@ import org.apache.http.conn.HttpHostConnectException
 
 object UrlInfoCommon extends Logger {
 
-	final val MAX_URL_INFO_LENGTH = 512
+	final val MAX_URL_INFO_LENGTH = 510
 	final val IGNORE_URLS_REGEX = Pattern.compile("(^|\\s)!nl($|\\s)")
 	// TODO find in prase loop
 	final val URL_PROTO_REGEX = Pattern.compile("\\bhttps?://")
