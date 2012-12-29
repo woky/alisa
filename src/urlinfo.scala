@@ -14,7 +14,7 @@ import org.xml.sax.helpers.DefaultHandler
 import java.lang.Math
 import java.io.{InputStreamReader, UnsupportedEncodingException, IOException}
 import java.net._
-import java.nio.CharBuffer
+import java.nio.{BufferOverflowException, CharBuffer}
 import java.nio.charset.Charset
 import nu.validator.htmlparser.common.{Heuristics, XmlViolationPolicy}
 import nu.validator.htmlparser.sax.HtmlParser
@@ -31,14 +31,16 @@ import org.apache.http.conn.HttpHostConnectException
 
 object UrlInfoCommon extends Logger {
 
-	final val MAX_URL_INFO_LENGTH = 510
-	final val IGNORE_URLS_REGEX = Pattern.compile("(^|\\s)!nl($|\\s)")
+	// TODO
+	final val MAX_URL_INFO_LENGTH = 460
 	// TODO find in prase loop
+	final val IGNORE_URLS_REGEX = Pattern.compile("(^|\\s)!nl($|\\s)")
 	final val URL_PROTO_REGEX = Pattern.compile("\\bhttps?://")
 	final val CHARSET_REGEX = Pattern.compile("charset=(\\S+)")
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val CTTYPE_HEADER = "Content-Type"
 	final val TITLE_PREFIX = "title: "
+	final val LONG_MSG_SUFFIX = "..."
 
 	val schemeRegistry = {
 		val sslCtx = SSLContext.getInstance("TLS")
@@ -252,7 +254,9 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 				}
 
 				val statCode = response.getStatusLine.getStatusCode
-				val buf = new StringBuilder(MAX_URL_INFO_LENGTH)
+				val buf = CharBuffer.allocate(MAX_URL_INFO_LENGTH)
+				buf.limit(buf.capacity - LONG_MSG_SUFFIX.length)
+
 				msg = Some(buf)
 
 				if (statCode != 200) {
@@ -279,7 +283,9 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 						if (ctHeader == null) {
 							buf.append("no Content-Type")
 						} else {
-							def appendGenerlUriInfo(buf: StringBuilder, ct: String, response: HttpResponse) {
+							val ct = ctHeader.getValue
+
+							def appendGenerlUriInfo {
 								buf.append("content: ")
 								buf.append(ct)
 
@@ -295,27 +301,32 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 								}
 							}
 
-							val ct = ctHeader.getValue
 							if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
 								try {
-									getTitle(uri, ct, MAX_URL_INFO_LENGTH - buf.size, getResp) match {
-										case Some(text) => buf.append(text)
-										case None => appendGenerlUriInfo(buf, ct, response)
-									}
+									val oldPos = buf.position
+									appendTitle(uri, ct, buf, getResp)
+									if (buf.position == oldPos)
+										appendGenerlUriInfo
 								} catch {
 									case e@(_: IOException | _: ClientProtocolException | _: SAXException) => {
 										logUriError(uri, "Failed to get/parse page", e)
-										appendGenerlUriInfo(buf, ct, response)
+										appendGenerlUriInfo
 									}
 								}
 							} else {
-								appendGenerlUriInfo(buf, ct, response)
+								appendGenerlUriInfo
 							}
 						}
+					}
+				} catch {
+					case _: BufferOverflowException => {
+						buf.limit(buf.capacity)
+						buf.append(LONG_MSG_SUFFIX)
 					}
 				} finally {
 					if (getResp.isDefined)
 						EntityUtils.consume(getResp.get.getEntity) // just closes the stream
+					buf.flip
 				}
 			}
 
@@ -324,7 +335,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 		}
 	}
 
-	private def getTitle(uri: URI, ct: String, maxTitleLen: Int, getResp: Option[HttpResponse]): Option[CharSequence] = {
+	private def appendTitle(uri: URI, ct: String, buf: CharBuffer, getResp: Option[HttpResponse]) {
 		val input = getResp.getOrElse {
 			main.httpClient.execute(new HttpGet(uri))
 		}.getEntity.getContent
@@ -339,7 +350,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 					} catch {
 						case e: UnsupportedEncodingException => {
 							logUriError(uri, s"Unknown encoding: $name", e)
-							return None
+							return
 						}
 					}
 				} else {
@@ -347,7 +358,6 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 				}
 			}
 
-			val buf = CharBuffer.allocate(maxTitleLen)
 			val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
 			parser.setContentHandler(new UrlInfoTitleExtractor(buf))
 
@@ -363,13 +373,6 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 
 			breakable {
 				parser.parse(xmlSource)
-			}
-
-			if (buf.position > 0) {
-				buf.flip
-				Some(buf)
-			} else {
-				None
 			}
 		} finally {
 			input.close
@@ -421,33 +424,23 @@ final class UrlInfoTitleExtractor(buf: CharBuffer) extends DefaultHandler {
 
 	override def characters(ch: Array[Char], start: Int, length: Int) {
 		if (state == IN_TITLE) {
-			val remaining = Math.min(buf.remaining - 3, length)
-			appendTitleText(ch, start, remaining)
+			for (i <- 0 until length) {
+				val c = ch(start + i)
 
-			if (remaining < length) {
-				buf.append("...")
-				break
-			}
-		}
-	}
+				if (Character.isWhitespace(c)) {
+					if (titleState == TITLE_TEXT)
+						titleState = TITLE_SPACE
+				} else {
+					if (titleState == TITLE_INIT) {
+						buf.put(UrlInfoCommon.TITLE_PREFIX)
+						titleState = TITLE_TEXT
+					} else if (titleState == TITLE_SPACE) {
+						buf.put(' ')
+						titleState = TITLE_TEXT
+					}
 
-	private def appendTitleText(ch: Array[Char], start: Int, length: Int) {
-		for (i <- 0 until length) {
-			val c = ch(start + i)
-
-			if (Character.isWhitespace(c)) {
-				if (titleState == TITLE_TEXT)
-					titleState = TITLE_SPACE
-			} else {
-				if (titleState == TITLE_INIT) {
-					buf.put(UrlInfoCommon.TITLE_PREFIX)
-					titleState = TITLE_TEXT
-				} else if (titleState == TITLE_SPACE) {
-					buf.put(' ')
-					titleState = TITLE_TEXT
+					buf.put(c)
 				}
-
-				buf.put(c)
 			}
 		}
 	}
