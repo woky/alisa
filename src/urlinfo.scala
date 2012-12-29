@@ -38,6 +38,7 @@ object UrlInfoCommon extends Logger {
 	final val CHARSET_REGEX = Pattern.compile("charset=(\\S+)")
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val CTTYPE_HEADER = "Content-Type"
+	final val TITLE_PREFIX = "title: "
 
 	val schemeRegistry = {
 		val sslCtx = SSLContext.getInstance("TLS")
@@ -162,6 +163,11 @@ object UrlInfoCommon extends Logger {
 			case _: HttpHostConnectException => ex.getCause
 			case _ => ex
 		}
+
+	@inline
+	def logUriError(uri: URI, err: String, ex: Throwable = null) {
+		logWarn(s"URI: $uri: $err", ex)
+	}
 }
 
 object UrlInfo {
@@ -173,30 +179,25 @@ object UrlInfo {
 final class UrlInfo(config: UrlInfoConfig) extends AbstractModule {
 
 	def configure() {
-		bind(classOf[UrlInfoContext]).toInstance(createContext(config))
+		bind(classOf[UrlInfoConfig]).toInstance(config)
 		Multibinder.newSetBinder(binder, classOf[Service]).addBinding.to(classOf[UrlInfoHandlers])
 		Multibinder.newSetBinder(binder, classOf[ModuleHandlers]).addBinding.to(classOf[UrlInfoHandlers])
-	}
-
-	def createContext(config: UrlInfoConfig) = {
-		val noTitleMsg = "HTML with no/empty title in head or in first " + Util.prefixUnit(config.dlLimit, "B")
-		new UrlInfoContext(config, noTitleMsg)
 	}
 }
 
 final case class UrlInfoConfig(dlLimit: Long, connTimeout: Long, soTimeout: Long)
 
-final case class UrlInfoContext(config: UrlInfoConfig, noTitleMsg: String)
-
 @Singleton
-final class UrlInfoHandlers @Inject()(val context: UrlInfoContext) extends ModuleHandlers with Service {
+final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleHandlers with Service {
+
+	import UrlInfoCommon._
 
 	val httpClient = {
-		val connMgr = new PoolingClientConnectionManager(UrlInfoCommon.schemeRegistry)
+		val connMgr = new PoolingClientConnectionManager(schemeRegistry)
 
 		val params = new BasicHttpParams
-		HttpConnectionParams.setConnectionTimeout(params, context.config.connTimeout.toInt)
-		HttpConnectionParams.setSoTimeout(params, context.config.soTimeout.toInt)
+		HttpConnectionParams.setConnectionTimeout(params, config.connTimeout.toInt)
+		HttpConnectionParams.setSoTimeout(params, config.soTimeout.toInt)
 
 		new DefaultHttpClient(connMgr, params)
 	}
@@ -245,9 +246,8 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 				} catch {
 					case e@(_: IOException | _: ClientProtocolException) => {
 						msg = Some("request failed: " + origNetEx(e))
-						logWarn("Request failed for URI " + uri, e)
+						logUriError(uri, "Request failed", e)
 						break
-						throw new IllegalStateException // XXX Scala 2.9
 					}
 				}
 
@@ -279,18 +279,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 						if (ctHeader == null) {
 							buf.append("no Content-Type")
 						} else {
-							val ct = ctHeader.getValue
-							if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
-								try {
-									buf.append(getTitle(uri, ct, MAX_URL_INFO_LENGTH - buf.size, getResp))
-								} catch {
-									case e@(_: IOException | _: ClientProtocolException | _: SAXException) => {
-										msg = Some("failed to get/parse page: " + origNetEx(e))
-										e.printStackTrace
-										break
-									}
-								}
-							} else {
+							def appendGenerlUriInfo(buf: StringBuilder, ct: String, response: HttpResponse) {
 								buf.append("content: ")
 								buf.append(ct)
 
@@ -305,6 +294,23 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 									}
 								}
 							}
+
+							val ct = ctHeader.getValue
+							if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
+								try {
+									getTitle(uri, ct, MAX_URL_INFO_LENGTH - buf.size, getResp) match {
+										case Some(text) => buf.append(text)
+										case None => appendGenerlUriInfo(buf, ct, response)
+									}
+								} catch {
+									case e@(_: IOException | _: ClientProtocolException | _: SAXException) => {
+										logUriError(uri, "Failed to get/parse page", e)
+										appendGenerlUriInfo(buf, ct, response)
+									}
+								}
+							} else {
+								appendGenerlUriInfo(buf, ct, response)
+							}
 						}
 					}
 				} finally {
@@ -318,7 +324,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 		}
 	}
 
-	private def getTitle(uri: URI, ct: String, maxTitleLen: Int, getResp: Option[HttpResponse]): CharSequence = {
+	private def getTitle(uri: URI, ct: String, maxTitleLen: Int, getResp: Option[HttpResponse]): Option[CharSequence] = {
 		val input = getResp.getOrElse {
 			main.httpClient.execute(new HttpGet(uri))
 		}.getEntity.getContent
@@ -331,21 +337,21 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 					try {
 						Some(Charset.forName(name))
 					} catch {
-						case _: UnsupportedEncodingException => return "unknown page encoding: " + name
+						case e: UnsupportedEncodingException => {
+							logUriError(uri, s"Unknown encoding: $name", e)
+							return None
+						}
 					}
 				} else {
 					None
 				}
 			}
 
-			val titlePrefix = "title: "
 			val buf = CharBuffer.allocate(maxTitleLen)
-			buf.append(titlePrefix)
-
 			val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
 			parser.setContentHandler(new UrlInfoTitleExtractor(buf))
 
-			val limInput = new LimitedInputStream(input, main.context.config.dlLimit)
+			val limInput = new LimitedInputStream(input, main.config.dlLimit)
 			val xmlSource =
 				if (httpCharset.isDefined) {
 					parser.setHeuristics(Heuristics.NONE)
@@ -359,11 +365,12 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 				parser.parse(xmlSource)
 			}
 
-			if (buf.position == titlePrefix.length)
-				return main.context.noTitleMsg
-
-			buf.flip
-			buf
+			if (buf.position > 0) {
+				buf.flip
+				Some(buf)
+			} else {
+				None
+			}
 		} finally {
 			input.close
 		}
@@ -432,10 +439,11 @@ final class UrlInfoTitleExtractor(buf: CharBuffer) extends DefaultHandler {
 				if (titleState == TITLE_TEXT)
 					titleState = TITLE_SPACE
 			} else {
-				if (titleState != TITLE_TEXT) {
-					if (titleState == TITLE_SPACE)
-						buf.put(' ')
-
+				if (titleState == TITLE_INIT) {
+					buf.put(UrlInfoCommon.TITLE_PREFIX)
+					titleState = TITLE_TEXT
+				} else if (titleState == TITLE_SPACE) {
+					buf.put(' ')
 					titleState = TITLE_TEXT
 				}
 
