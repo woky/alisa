@@ -285,7 +285,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 						} else {
 							val ct = ctHeader.getValue
 
-							def appendGenerlUriInfo {
+							def appendGeneralUriInfo {
 								buf.append("content: ")
 								buf.append(ct)
 
@@ -306,15 +306,15 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 									val oldPos = buf.position
 									appendTitle(uri, ct, buf, getResp)
 									if (buf.position == oldPos)
-										appendGenerlUriInfo
+										appendGeneralUriInfo
 								} catch {
 									case e@(_: IOException | _: ClientProtocolException | _: SAXException) => {
 										logUriError(uri, "Failed to get/parse page", e)
-										appendGenerlUriInfo
+										appendGeneralUriInfo
 									}
 								}
 							} else {
-								appendGenerlUriInfo
+								appendGeneralUriInfo
 							}
 						}
 					}
