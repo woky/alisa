@@ -60,7 +60,9 @@ object UrlInfoCommon extends Logger {
 			if (start < line.length && matcher.find(start)) {
 				val (mStart, mEnd) = (matcher.start, matcher.end)
 
-				if (mStart == 0 || line(mStart - 1) != '!') {
+				if (line.startsWith(IGNORE_URLS_TAG, mStart)) {
+					Nil
+				} else if (mStart == 0 || line(mStart - 1) != '!') {
 					val urlEnd =
 						if (mStart != 0 && line(mStart - 1) == '<') {
 							val pos = line.indexOf('>', mEnd)
@@ -85,8 +87,6 @@ object UrlInfoCommon extends Logger {
 
 					val newResults = addUrl(results, line.substring(mStart, urlEnd))
 					iter(newResults, matcher, urlEnd + 1)
-				} else if (line.startsWith(IGNORE_URLS_TAG, mStart)) {
-					Nil
 				} else {
 					iter(results, matcher, mEnd)
 				}
