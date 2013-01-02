@@ -52,10 +52,9 @@ object UrlInfoCommon extends Logger {
 	def findUrls(line: String) = {
 		def iter(results: List[URL], matcher: Matcher, start: Int): List[URL] = {
 			def addUrl(results: List[URL], s: String): List[URL] =
-				try {
-					new URL(s) :: results
-				} catch {
-					case e: MalformedURLException => results
+				parseUri(s) match {
+					case (Some(uri)) => uri.toURL :: results
+					case None => results
 				}
 
 			if (start < line.length && matcher.find(start)) {
@@ -104,9 +103,6 @@ object UrlInfoCommon extends Logger {
 	 * is broken (doesn't encode path & query) and URI constructor encodes
 	 * path & query so we need to decode it first so already encoded parts
 	 * will not be encoded twice.
-	 *
-	 * It's not needed with HttpUrlConnection but let's keep it because JDK8 http client seems
-	 * to accept only URIs.
 	 */
 	def parseUri(s: String): Option[URI] = {
 		val url = try {
