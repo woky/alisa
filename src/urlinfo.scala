@@ -1,32 +1,22 @@
 package alisa
 
 import java.util.regex.{Matcher, Pattern}
-import javax.net.ssl.{X509TrustManager, TrustManager, SSLContext}
+import javax.net.ssl._
 import java.security.cert.X509Certificate
-import org.apache.http.conn.ssl.SSLSocketFactory
-import org.apache.http.conn.scheme.{PlainSocketFactory, Scheme, SchemeRegistry}
-import org.apache.http.impl.conn.PoolingClientConnectionManager
-import org.apache.http.params.{HttpConnectionParams, BasicHttpParams}
-import org.apache.http.impl.client.DefaultHttpClient
 import com.google.inject.{AbstractModule, Inject}
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
-import java.io.{InputStreamReader, UnsupportedEncodingException, IOException}
+import java.io.{InputStream, InputStreamReader, UnsupportedEncodingException, IOException}
 import java.net._
 import java.nio.{BufferOverflowException, CharBuffer}
 import java.nio.charset.Charset
 import nu.validator.htmlparser.common.{Heuristics, XmlViolationPolicy}
 import nu.validator.htmlparser.sax.HtmlParser
-import org.apache.http.client.ClientProtocolException
-import org.apache.http.client.methods.HttpGet
-import org.apache.http.HttpResponse
-import org.apache.http.util.EntityUtils
 import org.xml.sax.{InputSource, SAXException}
 import util.control.Breaks._
 import Util._
 import com.google.inject.multibindings.Multibinder
 import javax.inject.Singleton
-import org.apache.http.conn.HttpHostConnectException
 
 object UrlInfoCommon extends Logger {
 
@@ -37,13 +27,11 @@ object UrlInfoCommon extends Logger {
 	final val URL_PROTO_REGEX = Pattern.compile("\\bhttps?://")
 	final val CHARSET_REGEX = Pattern.compile("charset=(\\S+)")
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
-	final val CTTYPE_HEADER = "Content-Type"
 	final val TITLE_PREFIX = "title: "
 	final val LONG_MSG_SUFFIX = "..."
 
-	val schemeRegistry = {
+	private[this] val sslCtx = {
 		val sslCtx = SSLContext.getInstance("TLS")
-
 		sslCtx.init(null, Array[TrustManager](
 			new X509TrustManager() {
 				def checkClientTrusted(p1: Array[X509Certificate], p2: String) {}
@@ -53,22 +41,22 @@ object UrlInfoCommon extends Logger {
 				def getAcceptedIssuers = null
 			}
 		), null)
+		sslCtx
+	}
 
-		val sslSockFactory = new SSLSocketFactory(sslCtx, SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER)
+	val SSL_SOCK_FACTORY = sslCtx.getSocketFactory
 
-		val schemes = new SchemeRegistry
-		schemes.register(new Scheme("http", 80, PlainSocketFactory.getSocketFactory))
-		schemes.register(new Scheme("https", 443, sslSockFactory))
-
-		schemes
+	val HOSTNAME_VERIFIER = new HostnameVerifier {
+		def verify(hostname: String, session: SSLSession) = true
 	}
 
 	def findUrls(line: String) = {
-		def iter(results: List[URI], matcher: Matcher, start: Int): List[URI] = {
-			def addUri(results: List[URI], s: String): List[URI] =
-				parseUri(s) match {
-					case Some(uri) => uri :: results
-					case None => results
+		def iter(results: List[URL], matcher: Matcher, start: Int): List[URL] = {
+			def addUrl(results: List[URL], s: String): List[URL] =
+				try {
+					new URL(s) :: results
+				} catch {
+					case e: MalformedURLException => results
 				}
 
 			if (start < line.length && matcher.find(start)) {
@@ -97,7 +85,7 @@ object UrlInfoCommon extends Logger {
 								wsPos
 						}
 
-					val newResults = addUri(results, line.substring(mStart, urlEnd))
+					val newResults = addUrl(results, line.substring(mStart, urlEnd))
 					iter(newResults, matcher, urlEnd + 1)
 				} else {
 					iter(results, matcher, mEnd)
@@ -115,6 +103,9 @@ object UrlInfoCommon extends Logger {
 	 * is broken (doesn't encode path & query) and URI constructor encodes
 	 * path & query so we need to decode it first so already encoded parts
 	 * will not be encoded twice.
+	 *
+	 * It's not needed with HttpUrlConnection but let's keep it because JDK8 http client seems
+	 * to accept only URIs.
 	 */
 	def parseUri(s: String): Option[URI] = {
 		val url = try {
@@ -159,21 +150,15 @@ object UrlInfoCommon extends Logger {
 		Some(uri)
 	}
 
-	def origNetEx(ex: Throwable) =
-		ex match {
-			case _: HttpHostConnectException => ex.getCause
-			case _ => ex
-		}
-
 	@inline
-	def logUriError(uri: URI, err: String, ex: Throwable = null) {
-		logWarn(s"URI: $uri: $err", ex)
+	def logUrlError(url: URL, err: String, ex: Throwable = null) {
+		logWarn(s"URI: $url: $err", ex)
 	}
 }
 
 object UrlInfo {
 
-	def apply(dlLimit: Long = 30000, connTimeout: Long = 15000, soTimeout: Long = 15000) =
+	def apply(dlLimit: Long = 30000, connTimeout: Int = 15000, soTimeout: Int = 15000) =
 		new UrlInfo(UrlInfoConfig(dlLimit, connTimeout, soTimeout))
 }
 
@@ -181,34 +166,14 @@ final class UrlInfo(config: UrlInfoConfig) extends AbstractModule {
 
 	def configure() {
 		bind(classOf[UrlInfoConfig]).toInstance(config)
-		Multibinder.newSetBinder(binder, classOf[Service]).addBinding.to(classOf[UrlInfoHandlers])
 		Multibinder.newSetBinder(binder, classOf[ModuleHandlers]).addBinding.to(classOf[UrlInfoHandlers])
 	}
 }
 
-final case class UrlInfoConfig(dlLimit: Long, connTimeout: Long, soTimeout: Long)
+final case class UrlInfoConfig(dlLimit: Long, connTimeout: Int, soTimeout: Int)
 
 @Singleton
-final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleHandlers with Service {
-
-	import UrlInfoCommon._
-
-	val httpClient = {
-		val connMgr = new PoolingClientConnectionManager(schemeRegistry)
-
-		val params = new BasicHttpParams
-		HttpConnectionParams.setConnectionTimeout(params, config.connTimeout.toInt)
-		HttpConnectionParams.setSoTimeout(params, config.soTimeout.toInt)
-
-		new DefaultHttpClient(connMgr, params)
-	}
-
-	private val connMonitor = new AsyncLoop(10 * 60 * 1000, httpClient.getConnectionManager.closeExpiredConnections)
-
-	def stop {
-		connMonitor.stop
-		httpClient.getConnectionManager.shutdown
-	}
+final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleHandlers {
 
 	override val message = Some(new IrcEventHandler[IrcMessageEvent] {
 
@@ -251,61 +216,59 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 		if (IGNORE_URLS_REGEX.matcher(message).find)
 			return
 
-		for (uri <- findUrls(message)) {
-			var msg: Option[CharSequence] = None
+		for (url <- findUrls(message)) {
+			val httpConn = url.openConnection.asInstanceOf[HttpURLConnection]
 
-			breakable {
-				val response = try {
-					main.httpClient.execute(new HttpGet(uri))
-				} catch {
-					case e@(_: IOException | _: ClientProtocolException) => {
-						msg = Some("request failed: " + origNetEx(e))
-						logUriError(uri, "Request failed", e)
-						break
-					}
+			httpConn.setConnectTimeout(main.config.connTimeout)
+			httpConn.setReadTimeout(main.config.soTimeout)
+
+			httpConn match {
+				case httpsConn: HttpsURLConnection => {
+					httpsConn.setSSLSocketFactory(SSL_SOCK_FACTORY)
+					httpsConn.setHostnameVerifier(HOSTNAME_VERIFIER)
 				}
+			}
 
-				val statCode = response.getStatusLine.getStatusCode
+			val msg = try {
+				val input = httpConn.getInputStream
 
 				val buf = new UrlInfoMessageBuffer(CharBuffer.allocate(MAX_URL_INFO_LENGTH))
 				buf.real.limit(buf.real.capacity - LONG_MSG_SUFFIX.length)
 
-				if (statCode != 200) {
-					buf.append(statCode.toString)
-					buf.append(' ')
-					buf.append(response.getStatusLine.getReasonPhrase)
-				}
-
 				try {
-					// will HttpClient ever return 3xx?
-					if (statCode == 300 || statCode == 301 || statCode == 302 || statCode == 303 || statCode == 307) {
-						val locHeader = response.getFirstHeader("Location")
+					val statCode = httpConn.getResponseCode
 
-						if (locHeader != null) {
+					if (statCode != 200) {
+						buf.append(statCode.toString)
+						buf.append(' ')
+						buf.append(httpConn.getResponseMessage)
+					}
+
+					if (statCode == 300 || statCode == 301 || statCode == 302 || statCode == 303 || statCode == 307) {
+						// HttpUrlConnection follows redirects by default but let's keep it
+						val location = httpConn.getHeaderField("Location")
+						if (location != null) {
 							buf.append("; location: ")
-							buf.append(locHeader.getValue)
+							buf.append(location)
 						}
 					} else if (statCode == 200 || statCode == 203) {
 						if (statCode != 200)
 							buf.append("; ")
 
-						val ctHeader = response.getFirstHeader(CTTYPE_HEADER)
-
-						if (ctHeader == null) {
+						val ct = httpConn.getHeaderField("Content-Type")
+						if (ct == null) {
 							buf.append("no Content-Type")
 						} else {
-							val ct = ctHeader.getValue
-
 							def appendGeneralUriInfo {
 								buf.append("content: ")
 								buf.append(ct)
 
-								val cLenHeader = response.getFirstHeader("Content-Length")
+								val cLenHeader = httpConn.getHeaderField("Content-Length")
 								if (cLenHeader != null) {
 									buf.append(", size: ")
 
 									try {
-										buf.append(prefixUnit(cLenHeader.getValue.toLong, "B"))
+										buf.append(prefixUnit(cLenHeader.toLong, "B"))
 									} catch {
 										case _: NumberFormatException => buf.append("not an integer")
 									}
@@ -315,12 +278,12 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 							if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
 								try {
 									val oldPos = buf.real.position
-									appendTitle(uri, ct, buf, response)
+									appendTitle(url, ct, buf, input)
 									if (buf.real.position == oldPos)
 										appendGeneralUriInfo
 								} catch {
-									case e@(_: IOException | _: ClientProtocolException | _: SAXException) => {
-										logUriError(uri, "Failed to get/parse page", e)
+									case e@(_: IOException | _: SAXException) => {
+										logUrlError(url, "Failed to get/parse page", e)
 										appendGeneralUriInfo
 									}
 								}
@@ -331,68 +294,62 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 					}
 
 					buf.real.flip
-					msg = Some(buf.real)
+					buf.real
 				} catch {
 					case buf.overflowEx => {
 						buf.real.limit(buf.real.capacity)
 						buf.real.append(LONG_MSG_SUFFIX)
 
 						buf.real.flip
-						msg = Some(buf.real)
-					}
-				} finally {
-					try {
-						EntityUtils.consume(response.getEntity) // just closes the stream
-					} catch {
-						case e: IOException => logUriError(uri, "Failed to close input stream", e)
+						buf.real
 					}
 				}
+			} catch {
+				case e: IOException => {
+					logUrlError(url, "Request failed", e)
+					"request failed: " + e
+				}
+			} finally {
+				httpConn.disconnect
 			}
 
-			if (msg.isDefined)
-				f(msg.get.toString)
+			f(msg.toString)
 		}
 	}
 
-	private def appendTitle(uri: URI, ct: String, buf: UrlInfoMessageBuffer, response: HttpResponse) {
-		val input = response.getEntity.getContent
-
-		try {
-			val httpCharset: Option[Charset] = {
-				val matcher = CHARSET_REGEX.matcher(ct)
-				if (matcher.find) {
-					val name = matcher.group(1)
-					try {
-						Some(Charset.forName(name))
-					} catch {
-						case e: UnsupportedEncodingException => {
-							logUriError(uri, s"Unknown encoding: $name", e)
-							return
-						}
+	private def appendTitle(url: URL, ct: String, buf: UrlInfoMessageBuffer, input: InputStream) {
+		val httpCharset: Option[Charset] = {
+			val matcher = CHARSET_REGEX.matcher(ct)
+			if (matcher.find) {
+				val name = matcher.group(1)
+				try {
+					Some(Charset.forName(name))
+				} catch {
+					case e: UnsupportedEncodingException => {
+						logUrlError(url, s"Unknown encoding: $name", e)
+						return
 					}
-				} else {
-					None
 				}
+			} else {
+				None
+			}
+		}
+
+		val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
+		parser.setContentHandler(new UrlInfoTitleExtractor(buf))
+
+		val limInput = new LimitedInputStream(input, main.config.dlLimit)
+		val xmlSource =
+			if (httpCharset.isDefined) {
+				parser.setHeuristics(Heuristics.NONE)
+				new InputSource(new InputStreamReader(limInput, httpCharset.get))
+			} else {
+				parser.setHeuristics(Heuristics.ICU)
+				new InputSource(limInput)
 			}
 
-			val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
-			parser.setContentHandler(new UrlInfoTitleExtractor(buf))
-
-			val limInput = new LimitedInputStream(input, main.config.dlLimit)
-			val xmlSource =
-				if (httpCharset.isDefined) {
-					parser.setHeuristics(Heuristics.NONE)
-					new InputSource(new InputStreamReader(limInput, httpCharset.get))
-				} else {
-					parser.setHeuristics(Heuristics.ICU)
-					new InputSource(limInput)
-				}
-
-			breakable {
-				parser.parse(xmlSource)
-			}
-		} finally {
-			input.close
+		breakable {
+			parser.parse(xmlSource)
 		}
 	}
 }
