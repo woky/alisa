@@ -69,21 +69,22 @@ object LogsCommon {
 
 	final val DEFAULT_ID_TTL = 15 * 60
 
-	final val DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm")
+	private[this] final val dateFormatTmpl = new SimpleDateFormat("yyyy-MM-dd HH:mm")
 
 	def writeTextResults(results: Array[LuceneStoredMessage], writeFunc: (String) => Unit) {
+		val dateFormat = dateFormatTmpl.clone.asInstanceOf[dateFormatTmpl.type]
+
+		def formatTextResult(msg: LuceneStoredMessage) = {
+			val time = dateFormat.format(new Date(msg.stored.time))
+			s"$time <${msg.stored.nick}> ${msg.stored.message}"
+		}
+
 		for (msg <- results)
 			writeFunc(formatTextResult(msg))
-	}
-
-	def formatTextResult(msg: LuceneStoredMessage) = {
-		val time = DATE_FORMAT.format(new Date(msg.stored.time))
-		s"$time <${msg.stored.nick}> ${msg.stored.message}"
 	}
 }
 
 object Logs {
-
 	def apply(idTtl: Int = LogsCommon.DEFAULT_ID_TTL) = new Logs(LogsContext(new LogsChannelSearchIds(idTtl)))
 }
 
