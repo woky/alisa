@@ -91,7 +91,7 @@ object Alisa extends Logger {
 				try {
 					s.stop
 				} catch {
-					case e: Throwable => e.printStackTrace
+					case e: Throwable => logError(s"Error while stopping service $s", e)
 				}
 		}
 
