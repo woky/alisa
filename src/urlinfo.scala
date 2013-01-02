@@ -11,7 +11,6 @@ import org.apache.http.impl.client.DefaultHttpClient
 import com.google.inject.{AbstractModule, Inject}
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
-import java.lang.Math
 import java.io.{InputStreamReader, UnsupportedEncodingException, IOException}
 import java.net._
 import java.nio.{BufferOverflowException, CharBuffer}
@@ -223,6 +222,27 @@ final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleH
 	})
 }
 
+final class UrlInfoMessageBuffer(val real: CharBuffer) {
+
+	val overflowEx = new Exception
+
+	def append(c: Char) {
+		try {
+			real.append(c)
+		} catch {
+			case _: BufferOverflowException => throw overflowEx
+		}
+	}
+
+	def append(s: CharSequence) {
+		try {
+			real.append(s)
+		} catch {
+			case _: BufferOverflowException => throw overflowEx
+		}
+	}
+}
+
 final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversable[String] with Logger {
 
 	import UrlInfoCommon._
@@ -254,10 +274,9 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 				}
 
 				val statCode = response.getStatusLine.getStatusCode
-				val buf = CharBuffer.allocate(MAX_URL_INFO_LENGTH)
-				buf.limit(buf.capacity - LONG_MSG_SUFFIX.length)
 
-				msg = Some(buf)
+				val buf = new UrlInfoMessageBuffer(CharBuffer.allocate(MAX_URL_INFO_LENGTH))
+				buf.real.limit(buf.real.capacity - LONG_MSG_SUFFIX.length)
 
 				if (statCode != 200) {
 					buf.append(statCode.toString)
@@ -303,9 +322,9 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 
 							if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
 								try {
-									val oldPos = buf.position
+									val oldPos = buf.real.position
 									appendTitle(uri, ct, buf, getResp)
-									if (buf.position == oldPos)
+									if (buf.real.position == oldPos)
 										appendGeneralUriInfo
 								} catch {
 									case e@(_: IOException | _: ClientProtocolException | _: SAXException) => {
@@ -318,15 +337,25 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 							}
 						}
 					}
+
+					buf.real.flip
+					msg = Some(buf.real)
 				} catch {
-					case _: BufferOverflowException => {
-						buf.limit(buf.capacity)
-						buf.append(LONG_MSG_SUFFIX)
+					case buf.overflowEx => {
+						buf.real.limit(buf.real.capacity)
+						buf.real.append(LONG_MSG_SUFFIX)
+
+						buf.real.flip
+						msg = Some(buf.real)
 					}
 				} finally {
-					if (getResp.isDefined)
-						EntityUtils.consume(getResp.get.getEntity) // just closes the stream
-					buf.flip
+					if (getResp.isDefined) {
+						try {
+							EntityUtils.consume(getResp.get.getEntity) // just closes the stream
+						} catch {
+							case e: IOException => logUriError(uri, "Failed to close input stream", e)
+						}
+					}
 				}
 			}
 
@@ -335,7 +364,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 		}
 	}
 
-	private def appendTitle(uri: URI, ct: String, buf: CharBuffer, getResp: Option[HttpResponse]) {
+	private def appendTitle(uri: URI, ct: String, buf: UrlInfoMessageBuffer, getResp: Option[HttpResponse]) {
 		val input = getResp.getOrElse {
 			main.httpClient.execute(new HttpGet(uri))
 		}.getEntity.getContent
@@ -380,7 +409,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 	}
 }
 
-final class UrlInfoTitleExtractor(buf: CharBuffer) extends DefaultHandler {
+final class UrlInfoTitleExtractor(buf: UrlInfoMessageBuffer) extends DefaultHandler {
 
 	private object State extends Enumeration {
 		type State = Value
@@ -432,14 +461,14 @@ final class UrlInfoTitleExtractor(buf: CharBuffer) extends DefaultHandler {
 						titleState = TITLE_SPACE
 				} else {
 					if (titleState == TITLE_INIT) {
-						buf.put(UrlInfoCommon.TITLE_PREFIX)
+						buf.append(UrlInfoCommon.TITLE_PREFIX)
 						titleState = TITLE_TEXT
 					} else if (titleState == TITLE_SPACE) {
-						buf.put(' ')
+						buf.append(' ')
 						titleState = TITLE_TEXT
 					}
 
-					buf.put(c)
+					buf.append(c)
 				}
 			}
 		}
