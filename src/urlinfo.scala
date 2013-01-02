@@ -18,7 +18,7 @@ import java.nio.charset.Charset
 import nu.validator.htmlparser.common.{Heuristics, XmlViolationPolicy}
 import nu.validator.htmlparser.sax.HtmlParser
 import org.apache.http.client.ClientProtocolException
-import org.apache.http.client.methods.{HttpGet, HttpHead}
+import org.apache.http.client.methods.HttpGet
 import org.apache.http.HttpResponse
 import org.apache.http.util.EntityUtils
 import org.xml.sax.{InputSource, SAXException}
@@ -255,16 +255,8 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 			var msg: Option[CharSequence] = None
 
 			breakable {
-				val (response, getResp) = try {
-					val head = main.httpClient.execute(new HttpHead(uri))
-					val getStat = head.getStatusLine.getStatusCode
-
-					if (getStat == 404 || getStat == 405) {
-						val get = main.httpClient.execute(new HttpGet(uri))
-						(get, Some(get))
-					} else {
-						(head, None)
-					}
+				val response = try {
+					main.httpClient.execute(new HttpGet(uri))
 				} catch {
 					case e@(_: IOException | _: ClientProtocolException) => {
 						msg = Some("request failed: " + origNetEx(e))
@@ -323,7 +315,7 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 							if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
 								try {
 									val oldPos = buf.real.position
-									appendTitle(uri, ct, buf, getResp)
+									appendTitle(uri, ct, buf, response)
 									if (buf.real.position == oldPos)
 										appendGeneralUriInfo
 								} catch {
@@ -349,12 +341,10 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 						msg = Some(buf.real)
 					}
 				} finally {
-					if (getResp.isDefined) {
-						try {
-							EntityUtils.consume(getResp.get.getEntity) // just closes the stream
-						} catch {
-							case e: IOException => logUriError(uri, "Failed to close input stream", e)
-						}
+					try {
+						EntityUtils.consume(response.getEntity) // just closes the stream
+					} catch {
+						case e: IOException => logUriError(uri, "Failed to close input stream", e)
 					}
 				}
 			}
@@ -364,10 +354,8 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 		}
 	}
 
-	private def appendTitle(uri: URI, ct: String, buf: UrlInfoMessageBuffer, getResp: Option[HttpResponse]) {
-		val input = getResp.getOrElse {
-			main.httpClient.execute(new HttpGet(uri))
-		}.getEntity.getContent
+	private def appendTitle(uri: URI, ct: String, buf: UrlInfoMessageBuffer, response: HttpResponse) {
+		val input = response.getEntity.getContent
 
 		try {
 			val httpCharset: Option[Charset] = {
