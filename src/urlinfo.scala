@@ -6,7 +6,7 @@ import java.security.cert.X509Certificate
 import com.google.inject.{AbstractModule, Inject}
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
-import java.io.{InputStream, InputStreamReader, UnsupportedEncodingException, IOException}
+import java.io.{InputStreamReader, UnsupportedEncodingException, IOException}
 import java.net._
 import java.nio.{BufferOverflowException, CharBuffer}
 import java.nio.charset.Charset
@@ -155,6 +155,118 @@ object UrlInfoCommon extends Logger {
 	def logUrlError(url: URL, err: String, ex: Throwable = null) {
 		logWarn(s"URI: $url: $err", ex)
 	}
+
+	def appendUrlInfo(url: URL, buf: UrlInfoMessageBuffer, config: UrlInfoConfig) {
+		val httpConn = url.openConnection.asInstanceOf[HttpURLConnection]
+
+		httpConn.setConnectTimeout(config.connTimeout)
+		httpConn.setReadTimeout(config.soTimeout)
+
+		httpConn match {
+			case httpsConn: HttpsURLConnection => {
+				httpsConn.setSSLSocketFactory(SSL_SOCK_FACTORY)
+				httpsConn.setHostnameVerifier(HOSTNAME_VERIFIER)
+			}
+			case _ =>
+		}
+
+		try {
+			httpConn.connect
+
+			val statCode = httpConn.getResponseCode
+
+			if (statCode != 200) {
+				buf.append(statCode.toString)
+				buf.append(' ')
+				buf.append(httpConn.getResponseMessage)
+			}
+
+			if (statCode == 300 || statCode == 301 || statCode == 302 || statCode == 303 || statCode == 307) {
+				// HttpUrlConnection follows redirects by default but let's keep it
+				val location = httpConn.getHeaderField("Location")
+				if (location != null) {
+					buf.append("; location: ")
+					buf.append(location)
+				}
+			} else if (statCode == 200 || statCode == 203) {
+				if (statCode != 200)
+					buf.append("; ")
+
+				val ct = httpConn.getHeaderField("Content-Type")
+				if (ct == null) {
+					buf.append("no Content-Type")
+				} else {
+					def appendGeneralUriInfo {
+						buf.append("content: ")
+						buf.append(ct)
+
+						val cLenHeader = httpConn.getHeaderField("Content-Length")
+						if (cLenHeader != null) {
+							buf.append(", size: ")
+
+							try {
+								buf.append(prefixUnit(cLenHeader.toLong, "B"))
+							} catch {
+								case _: NumberFormatException => buf.append("not an integer")
+							}
+						}
+					}
+
+					if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
+						try {
+							val oldPos = buf.real.position
+
+							val httpCharset: Option[Charset] = {
+								val matcher = CHARSET_REGEX.matcher(ct)
+								if (matcher.find) {
+									val name = matcher.group(1)
+									try {
+										Some(Charset.forName(name))
+									} catch {
+										case e: UnsupportedEncodingException => {
+											logUrlError(url, s"Unknown encoding: $name", e)
+											return
+										}
+									}
+								} else {
+									None
+								}
+							}
+
+							val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
+							parser.setContentHandler(new UrlInfoTitleExtractor(buf))
+
+							val limInput = new LimitedInputStream(httpConn.getInputStream, config.dlLimit)
+							val xmlSource =
+								if (httpCharset.isDefined) {
+									parser.setHeuristics(Heuristics.NONE)
+									new InputSource(new InputStreamReader(limInput, httpCharset.get))
+								} else {
+									parser.setHeuristics(Heuristics.ICU)
+									new InputSource(limInput)
+								}
+
+							breakable {
+								parser.parse(xmlSource)
+							}
+
+							if (buf.real.position == oldPos)
+								appendGeneralUriInfo
+						} catch {
+							case e@(_: IOException | _: SAXException) => {
+								logUrlError(url, "Failed to get/parse page", e)
+								appendGeneralUriInfo
+							}
+						}
+					} else {
+						appendGeneralUriInfo
+					}
+				}
+			}
+		} finally {
+			httpConn.disconnect
+		}
+	}
 }
 
 object UrlInfo {
@@ -179,8 +291,34 @@ final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleH
 	override val message = Some(new IrcEventHandler[IrcMessageEvent] {
 
 		def handle(event: IrcMessageEvent) = {
-			for (info <- new UrlInfoGen(event.message, UrlInfoHandlers.this)) {
-				event.context.bot.sendMessage(event.channel, info)
+			import UrlInfoCommon._
+
+			val buf = CharBuffer.allocate(MAX_URL_INFO_LENGTH)
+			val exBuf = new UrlInfoMessageBuffer(buf)
+
+			for (url <- findUrls(event.message)) {
+				buf.position(0)
+				buf.limit(buf.capacity - LONG_MSG_SUFFIX.length)
+
+				val msg: CharSequence =
+					try {
+						appendUrlInfo(url, exBuf, config)
+						buf.flip
+						buf
+					} catch {
+						case exBuf.overflowEx => {
+							buf.limit(buf.capacity)
+							buf.append(LONG_MSG_SUFFIX)
+							buf.flip
+							buf
+						}
+						case e: IOException => {
+							logUrlError(url, "Request failed", e)
+							"request failed: " + e
+						}
+					}
+
+				event.context.bot.sendMessage(event.channel, msg.toString)
 			}
 
 			true
@@ -205,149 +343,6 @@ final class UrlInfoMessageBuffer(val real: CharBuffer) {
 			real.append(s)
 		} catch {
 			case _: BufferOverflowException => throw overflowEx
-		}
-	}
-}
-
-final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversable[String] with Logger {
-
-	import UrlInfoCommon._
-
-	def foreach[U](f: String => U) {
-		for (url <- findUrls(message)) {
-			val httpConn = url.openConnection.asInstanceOf[HttpURLConnection]
-
-			httpConn.setConnectTimeout(main.config.connTimeout)
-			httpConn.setReadTimeout(main.config.soTimeout)
-
-			httpConn match {
-				case httpsConn: HttpsURLConnection => {
-					httpsConn.setSSLSocketFactory(SSL_SOCK_FACTORY)
-					httpsConn.setHostnameVerifier(HOSTNAME_VERIFIER)
-				}
-			}
-
-			val msg = try {
-				val input = httpConn.getInputStream
-
-				val buf = new UrlInfoMessageBuffer(CharBuffer.allocate(MAX_URL_INFO_LENGTH))
-				buf.real.limit(buf.real.capacity - LONG_MSG_SUFFIX.length)
-
-				try {
-					val statCode = httpConn.getResponseCode
-
-					if (statCode != 200) {
-						buf.append(statCode.toString)
-						buf.append(' ')
-						buf.append(httpConn.getResponseMessage)
-					}
-
-					if (statCode == 300 || statCode == 301 || statCode == 302 || statCode == 303 || statCode == 307) {
-						// HttpUrlConnection follows redirects by default but let's keep it
-						val location = httpConn.getHeaderField("Location")
-						if (location != null) {
-							buf.append("; location: ")
-							buf.append(location)
-						}
-					} else if (statCode == 200 || statCode == 203) {
-						if (statCode != 200)
-							buf.append("; ")
-
-						val ct = httpConn.getHeaderField("Content-Type")
-						if (ct == null) {
-							buf.append("no Content-Type")
-						} else {
-							def appendGeneralUriInfo {
-								buf.append("content: ")
-								buf.append(ct)
-
-								val cLenHeader = httpConn.getHeaderField("Content-Length")
-								if (cLenHeader != null) {
-									buf.append(", size: ")
-
-									try {
-										buf.append(prefixUnit(cLenHeader.toLong, "B"))
-									} catch {
-										case _: NumberFormatException => buf.append("not an integer")
-									}
-								}
-							}
-
-							if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
-								try {
-									val oldPos = buf.real.position
-									appendTitle(url, ct, buf, input)
-									if (buf.real.position == oldPos)
-										appendGeneralUriInfo
-								} catch {
-									case e@(_: IOException | _: SAXException) => {
-										logUrlError(url, "Failed to get/parse page", e)
-										appendGeneralUriInfo
-									}
-								}
-							} else {
-								appendGeneralUriInfo
-							}
-						}
-					}
-
-					buf.real.flip
-					buf.real
-				} catch {
-					case buf.overflowEx => {
-						buf.real.limit(buf.real.capacity)
-						buf.real.append(LONG_MSG_SUFFIX)
-
-						buf.real.flip
-						buf.real
-					}
-				}
-			} catch {
-				case e: IOException => {
-					logUrlError(url, "Request failed", e)
-					"request failed: " + e
-				}
-			} finally {
-				httpConn.disconnect
-			}
-
-			f(msg.toString)
-		}
-	}
-
-	private def appendTitle(url: URL, ct: String, buf: UrlInfoMessageBuffer, input: InputStream) {
-		val httpCharset: Option[Charset] = {
-			val matcher = CHARSET_REGEX.matcher(ct)
-			if (matcher.find) {
-				val name = matcher.group(1)
-				try {
-					Some(Charset.forName(name))
-				} catch {
-					case e: UnsupportedEncodingException => {
-						logUrlError(url, s"Unknown encoding: $name", e)
-						return
-					}
-				}
-			} else {
-				None
-			}
-		}
-
-		val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
-		parser.setContentHandler(new UrlInfoTitleExtractor(buf))
-
-		val limInput = new LimitedInputStream(input, main.config.dlLimit)
-		val xmlSource =
-			if (httpCharset.isDefined) {
-				parser.setHeuristics(Heuristics.NONE)
-				new InputSource(new InputStreamReader(limInput, httpCharset.get))
-			} else {
-				parser.setHeuristics(Heuristics.ICU)
-				new InputSource(limInput)
-			}
-
-		breakable {
-			parser.parse(xmlSource)
 		}
 	}
 }
