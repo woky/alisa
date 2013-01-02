@@ -22,9 +22,8 @@ object UrlInfoCommon extends Logger {
 
 	// TODO
 	final val MAX_URL_INFO_LENGTH = 460
-	// TODO find in prase loop
-	final val IGNORE_URLS_REGEX = Pattern.compile("(^|\\s)!nl($|\\s)")
-	final val URL_PROTO_REGEX = Pattern.compile("\\bhttps?://")
+	final val IGNORE_URLS_TAG = "nl"
+	final val URL_PROTO_REGEX = Pattern.compile(s"\\b(?:https?://|$IGNORE_URLS_TAG\\b)")
 	final val CHARSET_REGEX = Pattern.compile("charset=(\\S+)")
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val TITLE_PREFIX = "title: "
@@ -87,6 +86,8 @@ object UrlInfoCommon extends Logger {
 
 					val newResults = addUrl(results, line.substring(mStart, urlEnd))
 					iter(newResults, matcher, urlEnd + 1)
+				} else if (line.startsWith(IGNORE_URLS_TAG, mStart)) {
+					Nil
 				} else {
 					iter(results, matcher, mEnd)
 				}
@@ -213,9 +214,6 @@ final class UrlInfoGen(message: String, main: UrlInfoHandlers) extends Traversab
 	import UrlInfoCommon._
 
 	def foreach[U](f: String => U) {
-		if (IGNORE_URLS_REGEX.matcher(message).find)
-			return
-
 		for (url <- findUrls(message)) {
 			val httpConn = url.openConnection.asInstanceOf[HttpURLConnection]
 
