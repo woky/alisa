@@ -196,14 +196,14 @@ object UrlInfoCommon extends Logger {
 						buf.append("content: ")
 						buf.append(ct)
 
-						val cLenHeader = httpConn.getHeaderField("Content-Length")
-						if (cLenHeader != null) {
-							buf.append(", size: ")
-
+						val cl = httpConn.getHeaderField("Content-Length")
+						if (cl != null) {
 							try {
-								buf.append(prefixUnit(cLenHeader.toLong, "B"))
+								val len = cl.toLong
+								buf.append(", size: ")
+								buf.append(prefixUnit(len, "B"))
 							} catch {
-								case _: NumberFormatException => buf.append("not an integer")
+								case e: NumberFormatException => logUrlError(url, s"Invalid length: $cl", e)
 							}
 						}
 					}
