@@ -189,96 +189,103 @@ object UrlInfoCommon extends Logger {
 					buf.append("; ")
 
 				val ct = httpConn.getHeaderField("Content-Type")
-				if (ct == null) {
-					buf.append("no Content-Type")
-				} else {
-					def appendGeneralUriInfo {
-						buf.append("content: ")
-						buf.append(ct)
 
-						val cl = httpConn.getHeaderField("Content-Length")
-						if (cl != null) {
-							try {
-								val len = cl.toLong
-								buf.append(", size: ")
-								buf.append(prefixUnit(len, "B"))
-							} catch {
-								case e: NumberFormatException => logUrlError(url, s"Invalid length: $cl", e)
-							}
-						}
+				def appendGeneralUriInfo {
+					var first = true
 
-						val cd = httpConn.getHeaderField("Content-Disposition").trim
-						if (cd != null) {
-							val (dtype :: params) = cd.split("\\s*?;\\s*?").toList
-							if (dtype.equals("attachement")) {
-								def appendFilename(params: List[String]) {
-									params match {
-										case (p :: xs) => {
-											val PREFIX = "filename="
-											if (p.startsWith(PREFIX)) {
-												buf.append(", filename: ")
-												buf.append(p.substring(PREFIX.length))
-											} else {
-												appendFilename(xs)
-											}
-										}
-										case _ =>
-									}
-								}
-								appendFilename(params)
-							}
+					def appendHeader(name: String, value: String) {
+						if (!first) {
+							buf.append(", ")
+							first = false
 						}
+						buf.append(name)
+						buf.append(": ")
+						buf.append(value)
 					}
 
-					if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
+					if (ct != null)
+						appendHeader("content", ct)
+
+					val cl = httpConn.getHeaderField("Content-Length")
+					if (cl != null) {
 						try {
-							val oldPos = buf.real.position
+							val len = cl.toLong
+							appendHeader("size", prefixUnit(len, "B"))
+						} catch {
+							case e: NumberFormatException => logUrlError(url, s"Invalid length: $cl", e)
+						}
+					}
 
-							val httpCharset: Option[Charset] = {
-								val matcher = CHARSET_REGEX.matcher(ct)
-								if (matcher.find) {
-									val name = matcher.group(1)
-									try {
-										Some(Charset.forName(name))
-									} catch {
-										case e: UnsupportedEncodingException => {
-											logUrlError(url, s"Unknown encoding: $name", e)
-											None
+					val cd = httpConn.getHeaderField("Content-Disposition").trim
+					if (cd != null) {
+						val (dtype :: params) = cd.split("\\s*?;\\s*?").toList
+						if (dtype.equals("attachement")) {
+							def appendFilename(params: List[String]) {
+								params match {
+									case (p :: xs) => {
+										val PREFIX = "filename="
+										if (p.startsWith(PREFIX)) {
+											appendHeader("filename", p.substring(PREFIX.length))
+										} else {
+											appendFilename(xs)
 										}
 									}
-								} else {
-									None
+									case _ =>
 								}
 							}
+							appendFilename(params)
+						}
+					}
+				}
 
-							val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
-							parser.setContentHandler(new UrlInfoTitleExtractor(buf))
+				if (ct != null && (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml"))) {
+					try {
+						val oldPos = buf.real.position
 
-							val limInput = new LimitedInputStream(httpConn.getInputStream, config.dlLimit)
-							val xmlSource =
-								if (httpCharset.isDefined) {
-									parser.setHeuristics(Heuristics.NONE)
-									new InputSource(new InputStreamReader(limInput, httpCharset.get))
-								} else {
-									parser.setHeuristics(Heuristics.ICU)
-									new InputSource(limInput)
+						val httpCharset: Option[Charset] = {
+							val matcher = CHARSET_REGEX.matcher(ct)
+							if (matcher.find) {
+								val name = matcher.group(1)
+								try {
+									Some(Charset.forName(name))
+								} catch {
+									case e: UnsupportedEncodingException => {
+										logUrlError(url, s"Unknown encoding: $name", e)
+										None
+									}
 								}
-
-							breakable {
-								parser.parse(xmlSource)
-							}
-
-							if (buf.real.position == oldPos)
-								appendGeneralUriInfo
-						} catch {
-							case e@(_: IOException | _: SAXException) => {
-								logUrlError(url, "Failed to get/parse page", e)
-								appendGeneralUriInfo
+							} else {
+								None
 							}
 						}
-					} else {
-						appendGeneralUriInfo
+
+						val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
+						parser.setContentHandler(new UrlInfoTitleExtractor(buf))
+
+						val limInput = new LimitedInputStream(httpConn.getInputStream, config.dlLimit)
+						val xmlSource =
+							if (httpCharset.isDefined) {
+								parser.setHeuristics(Heuristics.NONE)
+								new InputSource(new InputStreamReader(limInput, httpCharset.get))
+							} else {
+								parser.setHeuristics(Heuristics.ICU)
+								new InputSource(limInput)
+							}
+
+						breakable {
+							parser.parse(xmlSource)
+						}
+
+						if (buf.real.position == oldPos)
+							appendGeneralUriInfo
+					} catch {
+						case e@(_: IOException | _: SAXException) => {
+							logUrlError(url, "Failed to get/parse page", e)
+							appendGeneralUriInfo
+						}
 					}
+				} else {
+					appendGeneralUriInfo
 				}
 			}
 		} finally {
