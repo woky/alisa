@@ -194,10 +194,11 @@ object UrlInfoCommon extends Logger {
 					var first = true
 
 					def appendHeader(name: String, value: String) {
-						if (!first) {
-							buf.append(", ")
+						if (first)
 							first = false
-						}
+						else
+							buf.append(", ")
+
 						buf.append(name)
 						buf.append(": ")
 						buf.append(value)
