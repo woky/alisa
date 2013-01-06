@@ -220,7 +220,7 @@ object UrlInfoCommon extends Logger {
 					val cd = httpConn.getHeaderField("Content-Disposition")
 					if (cd != null) {
 						val (dtype :: params) = cd.trim.split("\\s*?;\\s*?").toList
-						if (dtype.equals("attachement")) {
+						if (dtype.equals("attachment")) {
 							def appendFilename(params: List[String]) {
 								params match {
 									case (p :: xs) => {
