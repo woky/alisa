@@ -221,7 +221,7 @@ object UrlInfoCommon extends Logger {
 									} catch {
 										case e: UnsupportedEncodingException => {
 											logUrlError(url, s"Unknown encoding: $name", e)
-											return
+											None
 										}
 									}
 								} else {
