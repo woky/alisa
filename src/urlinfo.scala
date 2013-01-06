@@ -206,6 +206,28 @@ object UrlInfoCommon extends Logger {
 								case e: NumberFormatException => logUrlError(url, s"Invalid length: $cl", e)
 							}
 						}
+
+						val cd = httpConn.getHeaderField("Content-Disposition").trim
+						if (cd != null) {
+							val (dtype :: params) = cd.split("\\s*?;\\s*?").toList
+							if (dtype.equals("attachement")) {
+								def appendFilename(params: List[String]) {
+									params match {
+										case (p :: xs) => {
+											val PREFIX = "filename="
+											if (p.startsWith(PREFIX)) {
+												buf.append(", filename: ")
+												buf.append(p.substring(PREFIX.length))
+											} else {
+												appendFilename(xs)
+											}
+										}
+										case _ =>
+									}
+								}
+								appendFilename(params)
+							}
+						}
 					}
 
 					if (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml")) {
