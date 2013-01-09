@@ -90,7 +90,7 @@ final case class LuceneMessage(@BeanProperty channel: LuceneChannel,
 
 final case class LuceneStoredMessage(@BeanProperty id: Int, @BeanProperty stored: LuceneMessage)
 
-final case class LuceneSearchParams(limit: Int, sortByTime: Boolean, reverse: Boolean = false)
+final case class LuceneSearchParams(limit: Int, sortByTime: Boolean)
 
 @Singleton
 final class LuceneService @Inject()(config: LuceneConfig) extends Service {

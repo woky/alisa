@@ -203,7 +203,7 @@ final class LogsCommandHandler(context: LogsContext, lucene: LuceneService, jett
 
 		val limit = getSearchLimit(paramsMap, bot, channel, sender)
 		val sortByTime = !getSortSearchByRelevance(paramsMap)
-		val params = LuceneSearchParams(limit, sortByTime, reverse = true)
+		val params = LuceneSearchParams(limit, sortByTime)
 
 		lucene.commit
 		val results = lucene.search(query, LuceneChannel(network, channel), params)
