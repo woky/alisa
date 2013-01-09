@@ -344,7 +344,8 @@ final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleH
 						}
 					}
 
-				event.context.bot.sendMessage(event.channel, msg.toString)
+				if (msg.length > 0)
+					event.context.bot.sendMessage(event.channel, msg.toString)
 			}
 
 			true
