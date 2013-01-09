@@ -160,22 +160,28 @@ final class LuceneService @Inject()(config: LuceneConfig) extends Service {
 
 	def querySearch(query: Query, params: LuceneSearchParams) =
 		if (params.sortByTime)
-			getSearcher.search(query, params.limit,
-				new Sort(new SortField(TIME, SortField.Type.LONG, params.reverse)))
+			getSearcher.search(query, params.limit, new Sort(new SortField(TIME, SortField.Type.LONG, true)))
 		else
 			getSearcher.search(query, params.limit)
 
-	def createResults(hits: Array[ScoreDoc]) =
-		for (hit <- hits) yield {
-			val doc = searcher.doc(hit.doc)
-			new LuceneStoredMessage(hit.doc, LuceneMessage(LuceneChannel(doc.get(NET), doc.get(CHAN)),
+	def createResults(hits: Array[ScoreDoc], reverse: Boolean) = {
+		val range =
+			if (reverse)
+				hits.length - 1 to 0 by -1
+			else
+				0 until hits.length
+
+		for (i <- range) yield {
+			val doc = searcher.doc(hits(i).doc)
+			new LuceneStoredMessage(hits(i).doc, LuceneMessage(LuceneChannel(doc.get(NET), doc.get(CHAN)),
 				doc.getField(TIME).numericValue.longValue, doc.get(NICK), doc.get(USER), doc.get(HOST), doc.get(MSG)))
 		}
+	}
 
 	def search(queryStr: String, channel: LuceneChannel, params: LuceneSearchParams) = {
 		val query = createQuery(queryStr, channel)
 		synchronized {
-			createResults(querySearch(query, params).scoreDocs)
+			createResults(querySearch(query, params).scoreDocs, params.sortByTime)
 		}
 	}
 

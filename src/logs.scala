@@ -75,7 +75,7 @@ object LogsCommon {
 
 	private[this] final val dateFormatTmpl = new SimpleDateFormat("yyyy-MM-dd HH:mm")
 
-	def writeTextResults(results: Array[LuceneStoredMessage], writeFunc: (String) => Unit) {
+	def writeTextResults(results: Seq[LuceneStoredMessage], writeFunc: (String) => Unit) {
 		val dateFormat = dateFormatTmpl.clone.asInstanceOf[dateFormatTmpl.type]
 
 		def formatTextResult(msg: LuceneStoredMessage) = {
