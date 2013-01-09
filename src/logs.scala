@@ -44,6 +44,8 @@ object LogsCommon {
 		final val QUERY_DEFAULT = "*"
 		final val SORTBYTIME_PARAM = "sortByTime"
 		final val SORTBYTIME_DEFAULT = "true"
+		final val LIMIT_PARAM="limit"
+		final val LIMIT_DEFAULT = "100"
 	}
 
 	object Command {
@@ -65,6 +67,8 @@ object LogsCommon {
 
 		final val SEARCH_DEFAULT_LIMIT = 1
 		final val SEARCH_DEFAULT_REVELANCE = false
+
+		final val LINK_DEFAULT_LIMIT = 100
 	}
 
 	final val DEFAULT_ID_TTL = 15 * 60
@@ -142,8 +146,8 @@ final class LogsCommandHandler(context: LogsContext, lucene: LuceneService, jett
 				args match {
 					case subcmd :: subargs => subcmd match {
 						case LINK => subargs match {
-							case query :: Nil => link(network, channel, sender, bot, query)
-							case Nil => link(network, channel, sender, bot, "*")
+							case query :: Nil => link(network, channel, sender, bot, query, LINK_DEFAULT_LIMIT)
+							case Nil => link(network, channel, sender, bot, "*", LINK_DEFAULT_LIMIT)
 							case _ => throw new AssertionError // shouldn't happen with split() with limit 2
 						}
 						case FLUSH => lucene.commit
@@ -165,12 +169,14 @@ final class LogsCommandHandler(context: LogsContext, lucene: LuceneService, jett
 		bot.sendMessage(channel, s"$sender, usage: $command {$LINK [<query>] | $FLUSH | $searchUsage}")
 	}
 
-	def link(network: String, channel: String, sender: String, bot: PircBot, query: String) {
+	def link(network: String, channel: String, sender: String, bot: PircBot, query: String, limit: Int) {
 		val id = Random.alphanumeric.take(ID_LEN).mkString
 		context.allowedIds(id) = LuceneChannel(network, channel)
 
 		val encQry = URLEncoder.encode(query, "utf-8")
-		val link = linkPrefix + id + '?' + LogsCommon.Web.QUERY_PARAM + '=' + encQry
+		val link = (linkPrefix + id
+				+ '?' + LogsCommon.Web.QUERY_PARAM + '=' + encQry
+				+ '&' + LogsCommon.Web.LIMIT_PARAM + '=' + limit)
 		val ttl = context.allowedIds.idTtl
 		val heading = s"You can browse logs for channel $channel in network $network for $ttl seconds here:"
 
@@ -245,8 +251,10 @@ final class LogsResource @Inject()(context: LogsContext, lucene: LuceneService) 
 	            @QueryParam(QUERY_PARAM) @DefaultValue(QUERY_DEFAULT)
 	            queryStr: String,
 	            @QueryParam(SORTBYTIME_PARAM) @DefaultValue(SORTBYTIME_DEFAULT)
-	            sortByTime: Boolean) =
-		getResults(id, queryStr, sortByTime)
+	            sortByTime: Boolean,
+				@QueryParam(LIMIT_PARAM) @DefaultValue(LIMIT_DEFAULT)
+				limit: Int) =
+		getResults(id, queryStr, sortByTime, limit)
 
 	@GET
 	@Produces(Array(MediaType.TEXT_PLAIN + "; charset=UTF-8"))
@@ -255,8 +263,10 @@ final class LogsResource @Inject()(context: LogsContext, lucene: LuceneService) 
 	            @QueryParam(QUERY_PARAM) @DefaultValue(QUERY_DEFAULT)
 	            queryStr: String,
 	            @QueryParam(SORTBYTIME_PARAM) @DefaultValue(SORTBYTIME_DEFAULT)
-	            sortByTime: Boolean) = {
-		val results = getResults(id, queryStr, sortByTime)
+	            sortByTime: Boolean,
+				@QueryParam(LIMIT_PARAM) @DefaultValue(LIMIT_DEFAULT)
+				limit: Int) = {
+	val results = getResults(id, queryStr, sortByTime, limit)
 		new StreamingOutput {
 			def write(output: OutputStream) {
 				val writer = new BufferedWriter(new OutputStreamWriter(output))
@@ -269,10 +279,10 @@ final class LogsResource @Inject()(context: LogsContext, lucene: LuceneService) 
 		}
 	}
 
-	def getResults(id: String, queryStr: String, sortByTime: Boolean) = {
+	def getResults(id: String, queryStr: String, sortByTime: Boolean, limit: Int) = {
 		context.allowedIds(id) match {
 			case Some(allowedChan) => {
-				val params = LuceneSearchParams(Integer.MAX_VALUE, sortByTime)
+				val params = LuceneSearchParams(limit, sortByTime)
 				lucene.search(queryStr, allowedChan, params)
 			}
 			case None => throw new WebApplicationException(Response.Status.NOT_FOUND)
