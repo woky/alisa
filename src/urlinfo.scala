@@ -164,6 +164,12 @@ object UrlInfoCommon extends Logger {
 			// our redirect handling is slower (creating HttpUrlConnection instances)
 			//httpConn.setInstanceFollowRedirects(false)
 
+			httpConn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+			httpConn.setRequestProperty("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.57 Safari/537.17")
+			//httpConn.setRequestProperty("Accept-Encoding", "gzip,deflate,sdch")
+			httpConn.setRequestProperty("Accept-Language", "en-US;q=0.8,en;q=0.6")
+			httpConn.setRequestProperty("Accept-Charset", "windows-1250,utf-8;q=0.7,*;q=0.3")
+
 			httpConn match {
 				case httpsConn: HttpsURLConnection => {
 					httpsConn.setSSLSocketFactory(SSL_SOCK_FACTORY)
