@@ -17,6 +17,7 @@ import util.control.Breaks._
 import Util._
 import com.google.inject.multibindings.Multibinder
 import javax.inject.Singleton
+import annotation.tailrec
 
 object UrlInfoCommon extends Logger {
 
@@ -28,6 +29,7 @@ object UrlInfoCommon extends Logger {
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val TITLE_PREFIX = "title: "
 	final val LONG_MSG_SUFFIX = "..."
+	final val MAX_REDIRS = 10
 
 	private[this] val sslCtx = {
 		val sslCtx = SSLContext.getInstance("TLS")
@@ -153,145 +155,177 @@ object UrlInfoCommon extends Logger {
 	}
 
 	def appendUrlInfo(url: URL, buf: UrlInfoMessageBuffer, config: UrlInfoConfig) {
-		val httpConn = url.openConnection.asInstanceOf[HttpURLConnection]
+		@tailrec
+		def iter(visited: Set[URI], redirCount: Int) {
+			val httpConn = url.openConnection.asInstanceOf[HttpURLConnection]
 
-		httpConn.setConnectTimeout(config.connTimeout)
-		httpConn.setReadTimeout(config.soTimeout)
+			httpConn.setConnectTimeout(config.connTimeout)
+			httpConn.setReadTimeout(config.soTimeout)
+			// our redirect handling is slower (creating HttpUrlConnection instances)
+			//httpConn.setInstanceFollowRedirects(false)
 
-		httpConn match {
-			case httpsConn: HttpsURLConnection => {
-				httpsConn.setSSLSocketFactory(SSL_SOCK_FACTORY)
-				httpsConn.setHostnameVerifier(HOSTNAME_VERIFIER)
+			httpConn match {
+				case httpsConn: HttpsURLConnection => {
+					httpsConn.setSSLSocketFactory(SSL_SOCK_FACTORY)
+					httpsConn.setHostnameVerifier(HOSTNAME_VERIFIER)
+				}
+				case _ =>
 			}
-			case _ =>
-		}
 
-		try {
 			httpConn.connect
 
 			val statCode = httpConn.getResponseCode
+			val statMsg = httpConn.getResponseMessage
 
-			if (statCode != 200) {
+			def appendStatusLine {
 				buf.append(statCode.toString)
 				buf.append(' ')
-				buf.append(httpConn.getResponseMessage)
+				buf.append(statMsg)
 			}
 
-			if (statCode == 300 || statCode == 301 || statCode == 302 || statCode == 303 || statCode == 307) {
-				// HttpUrlConnection follows redirects by default but let's keep it
-				val location = httpConn.getHeaderField("Location")
-				if (location != null) {
-					buf.append("; location: ")
-					buf.append(location)
-				}
-			} else if (statCode == 200 || statCode == 203) {
-				if (statCode != 200)
-					buf.append("; ")
+			if (statCode == 200 || statCode == 203) {
+				try {
+					var firstInfo =
+						if (statCode != 200) {
+							appendStatusLine
+							false
+						} else {
+							true
+						}
 
-				val ct = httpConn.getHeaderField("Content-Type")
+					val ct = httpConn.getHeaderField("Content-Type")
 
-				def appendGeneralUriInfo {
-					var first = true
+					def appendGeneralUriInfo {
+						def appendHeader(name: String, value: String) {
+							if (firstInfo)
+								firstInfo = false
+							else
+								buf.append(", ")
 
-					def appendHeader(name: String, value: String) {
-						if (first)
-							first = false
-						else
-							buf.append(", ")
+							buf.append(name)
+							buf.append(": ")
+							buf.append(value)
+						}
 
-						buf.append(name)
-						buf.append(": ")
-						buf.append(value)
-					}
+						if (ct != null)
+							appendHeader("content", ct)
 
-					if (ct != null)
-						appendHeader("content", ct)
+						val cl = httpConn.getHeaderField("Content-Length")
+						if (cl != null) {
+							try {
+								val len = cl.toLong
+								appendHeader("size", prefixUnit(len, "B"))
+							} catch {
+								case e: NumberFormatException => logUrlError(url, s"Invalid length: $cl", e)
+							}
+						}
 
-					val cl = httpConn.getHeaderField("Content-Length")
-					if (cl != null) {
-						try {
-							val len = cl.toLong
-							appendHeader("size", prefixUnit(len, "B"))
-						} catch {
-							case e: NumberFormatException => logUrlError(url, s"Invalid length: $cl", e)
+						val cd = httpConn.getHeaderField("Content-Disposition")
+						if (cd != null) {
+							val (dtype :: params) = cd.trim.split("\\s*?;\\s*?").toList
+							if (dtype.equals("attachment")) {
+								def appendFilename(params: List[String]) {
+									params match {
+										case (p :: xs) => {
+											val PREFIX = "filename="
+											if (p.startsWith(PREFIX)) {
+												appendHeader("filename", p.substring(PREFIX.length))
+											} else {
+												appendFilename(xs)
+											}
+										}
+										case _ =>
+									}
+								}
+								appendFilename(params)
+							}
 						}
 					}
 
-					val cd = httpConn.getHeaderField("Content-Disposition")
-					if (cd != null) {
-						val (dtype :: params) = cd.trim.split("\\s*?;\\s*?").toList
-						if (dtype.equals("attachment")) {
-							def appendFilename(params: List[String]) {
-								params match {
-									case (p :: xs) => {
-										val PREFIX = "filename="
-										if (p.startsWith(PREFIX)) {
-											appendHeader("filename", p.substring(PREFIX.length))
-										} else {
-											appendFilename(xs)
+					if (ct != null && (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml"))) {
+						try {
+							val oldPos = buf.real.position
+
+							val httpCharset: Option[Charset] = {
+								val matcher = CHARSET_REGEX.matcher(ct)
+								if (matcher.find) {
+									val name = matcher.group(1)
+									try {
+										Some(Charset.forName(name))
+									} catch {
+										case e: UnsupportedEncodingException => {
+											logUrlError(url, s"Unknown encoding: $name", e)
+											None
 										}
 									}
-									case _ =>
+								} else {
+									None
 								}
 							}
-							appendFilename(params)
+
+							val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
+							parser.setContentHandler(new UrlInfoTitleExtractor(buf))
+
+							val limInput = new LimitedInputStream(httpConn.getInputStream, config.dlLimit)
+							val xmlSource =
+								if (httpCharset.isDefined) {
+									parser.setHeuristics(Heuristics.NONE)
+									new InputSource(new InputStreamReader(limInput, httpCharset.get))
+								} else {
+									parser.setHeuristics(Heuristics.ICU)
+									new InputSource(limInput)
+								}
+
+							breakable {
+								parser.parse(xmlSource)
+							}
+
+							if (buf.real.position == oldPos)
+								appendGeneralUriInfo
+						} catch {
+							case e@(_: IOException | _: SAXException) => {
+								logUrlError(url, "Failed to get/parse page", e)
+								appendGeneralUriInfo
+							}
 						}
+					} else {
+						appendGeneralUriInfo
 					}
+				} finally {
+					httpConn.disconnect
 				}
+			} else {
+				httpConn.disconnect
 
-				if (ct != null && (ct.startsWith("text/html") || ct.startsWith("application/xhtml+xml"))) {
-					try {
-						val oldPos = buf.real.position
-
-						val httpCharset: Option[Charset] = {
-							val matcher = CHARSET_REGEX.matcher(ct)
-							if (matcher.find) {
-								val name = matcher.group(1)
-								try {
-									Some(Charset.forName(name))
-								} catch {
-									case e: UnsupportedEncodingException => {
-										logUrlError(url, s"Unknown encoding: $name", e)
-										None
+				// only for HTTP -> HTTPS or vice versa
+				if (statCode == 300 || statCode == 301 || statCode == 302 || statCode == 303 || statCode == 307) {
+					if (redirCount < MAX_REDIRS) {
+						val location = httpConn.getHeaderField("Location")
+						if (location != null) {
+							logDebug(s"redirecting to $location")
+							val newOptUrl = parseUri(location)
+							newOptUrl match {
+								case Some(newUri) =>
+									if (!visited.contains(newUri)) {
+										iter(visited + newUri, redirCount + 1)
+									} else {
+										buf.append("cyclic redirects")
 									}
-								}
-							} else {
-								None
+								case None => buf.append("invalid redirect")
 							}
+						} else {
+							buf.append("invalid redirect")
 						}
-
-						val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
-						parser.setContentHandler(new UrlInfoTitleExtractor(buf))
-
-						val limInput = new LimitedInputStream(httpConn.getInputStream, config.dlLimit)
-						val xmlSource =
-							if (httpCharset.isDefined) {
-								parser.setHeuristics(Heuristics.NONE)
-								new InputSource(new InputStreamReader(limInput, httpCharset.get))
-							} else {
-								parser.setHeuristics(Heuristics.ICU)
-								new InputSource(limInput)
-							}
-
-						breakable {
-							parser.parse(xmlSource)
-						}
-
-						if (buf.real.position == oldPos)
-							appendGeneralUriInfo
-					} catch {
-						case e@(_: IOException | _: SAXException) => {
-							logUrlError(url, "Failed to get/parse page", e)
-							appendGeneralUriInfo
-						}
+					} else {
+						buf.append(s"too many redirects ($MAX_REDIRS)")
 					}
 				} else {
-					appendGeneralUriInfo
+					appendStatusLine
 				}
 			}
-		} finally {
-			httpConn.disconnect
 		}
+
+		iter(Set(), 0)
 	}
 }
 
