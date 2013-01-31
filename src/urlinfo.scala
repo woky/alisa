@@ -329,21 +329,40 @@ object UrlInfoCommon extends Logger {
 	}
 }
 
+@Singleton
+final class UrlInfoService @Inject()(config: UrlInfoConfig) extends Service {
+
+	val clearCookieThread = new AsyncLoop(config.clearCookiesPeriod, clearCookies)
+
+	clearCookies()
+
+	private def clearCookies() {
+		CookieHandler.setDefault(new CookieManager)
+	}
+
+	def stop {
+		clearCookieThread.stop
+	}
+}
+
+
 object UrlInfo {
 
-	def apply(dlLimit: Long = 30000, connTimeout: Int = 15000, soTimeout: Int = 15000) =
-		new UrlInfo(UrlInfoConfig(dlLimit, connTimeout, soTimeout))
+	def apply(dlLimit: Long = 30000, connTimeout: Int = 15000, soTimeout: Int = 15000,
+	          clearCookiesPeriod: Long = 3600) =
+		new UrlInfo(UrlInfoConfig(dlLimit, connTimeout, soTimeout, clearCookiesPeriod))
 }
 
 final class UrlInfo(config: UrlInfoConfig) extends AbstractModule {
 
 	def configure() {
 		bind(classOf[UrlInfoConfig]).toInstance(config)
+		Multibinder.newSetBinder(binder, classOf[Service]).addBinding.to(classOf[UrlInfoService])
 		Multibinder.newSetBinder(binder, classOf[ModuleHandlers]).addBinding.to(classOf[UrlInfoHandlers])
 	}
 }
 
-final case class UrlInfoConfig(dlLimit: Long, connTimeout: Int, soTimeout: Int)
+final case class UrlInfoConfig(dlLimit: Long, connTimeout: Int, soTimeout: Int, clearCookiesPeriod: Long)
 
 @Singleton
 final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleHandlers {
