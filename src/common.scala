@@ -162,9 +162,13 @@ object Util {
 	def escapeStringASCII(s: String): CharSequence = escapeString(s, escapeCharASCII)
 }
 
-final class LimitedInputStream(input: InputStream, private var limit: Long) extends InputStream {
+final class LimitedInputStream(input: InputStream, private var limit: Long)
+		extends InputStream with Logger {
+
+	override protected def logMsg(msg: => String) = s"$msg (limit = $limit)"
 
 	def read: Int = synchronized {
+		logDebug("read(), length = 1")
 		if (limit <= 0)
 			return -1
 
@@ -174,6 +178,7 @@ final class LimitedInputStream(input: InputStream, private var limit: Long) exte
 	}
 
 	override def read(b: Array[Byte], off: Int, len: Int): Int = synchronized {
+		logDebug("read(), length = " + len)
 		if (limit <= 0)
 			return -1
 
@@ -183,6 +188,7 @@ final class LimitedInputStream(input: InputStream, private var limit: Long) exte
 	}
 
 	override def skip(n: Long): Long = synchronized {
+		logDebug("skip(), length = " + n)
 		if (limit <= 0)
 			return 0
 
@@ -199,6 +205,7 @@ final class LimitedInputStream(input: InputStream, private var limit: Long) exte
 	}
 
 	override def close {
+		logDebug("close()")
 		synchronized {
 			input.close
 		}
