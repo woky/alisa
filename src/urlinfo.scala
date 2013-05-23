@@ -389,7 +389,11 @@ final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleH
 						}
 						case e: IOException => {
 							logUrlError(url, "Request failed", e)
-							"request failed: " + e
+							"request failed: " + (e match {
+								case e: UnknownHostException => "invalid hostname " + e.getMessage
+								case e@(SocketTimeoutException | SocketException) => e.getMessage
+								case _ => e.getMessage
+							})
 						}
 					}
 
