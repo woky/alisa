@@ -18,6 +18,7 @@ import Util._
 import com.google.inject.multibindings.Multibinder
 import javax.inject.Singleton
 import annotation.tailrec
+import scala.collection.JavaConversions._
 
 object UrlInfoCommon extends Logger {
 
@@ -357,13 +358,17 @@ final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleH
 
 	override val message = Some(new IrcEventHandler[IrcMessageEvent] {
 
+		def allowedUrl(url: URL): Boolean =
+			InetAddress.getAllByName(url.getHost)
+					.forall(a => !a.isLoopbackAddress && !a.isSiteLocalAddress)
+
 		def handle(event: IrcMessageEvent) = {
 			import UrlInfoCommon._
 
 			val buf = CharBuffer.allocate(MAX_URL_INFO_LENGTH)
 			val exBuf = new UrlInfoMessageBuffer(buf)
 
-			for (url <- findUrls(event.message)) {
+			for (url <- findUrls(event.message).filter(allowedUrl)) {
 				buf.position(0)
 				buf.limit(buf.capacity - LONG_MSG_SUFFIX.length)
 
