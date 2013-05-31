@@ -16,6 +16,7 @@ final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: I
 		try {
 			new SearchServer(httpAddr, allowedIds, lucene)
 		} catch {
+			// TODO come up with something better
 			case e: Exception => {
 				lucene.stop
 				throw e
