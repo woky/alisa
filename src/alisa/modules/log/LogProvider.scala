@@ -3,7 +3,7 @@ package alisa.modules.log
 import org.apache.lucene.store.FSDirectory
 import java.io.File
 import alisa.ModuleProvider
-import java.net.InetSocketAddress
+import java.net.{Socket, InetSocketAddress}
 
 object LogProvider {
 
@@ -22,6 +22,15 @@ final class LogProvider extends ModuleProvider {
 		val idxDirStr = params.getOrElse("indexDir", "index").asInstanceOf[String]
 		val idxDir = FSDirectory.open(new File(idxDirStr))
 		// TODO use params
-		new LogModule(idxDir, new InetSocketAddress(DEF_HTTP_PORT), DEF_ID_TTL)
+		new LogModule(idxDir, new InetSocketAddress(getLocalPublicAddr, DEF_HTTP_PORT), DEF_ID_TTL)
+	}
+
+	def getLocalPublicAddr = {
+		val s = new Socket("example.org", 80)
+		try {
+			s.getLocalAddress
+		} finally {
+			s.close
+		}
 	}
 }
