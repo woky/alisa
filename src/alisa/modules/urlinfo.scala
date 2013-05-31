@@ -1,9 +1,8 @@
-package alisa
+package alisa.modules
 
 import java.util.regex.{Matcher, Pattern}
 import javax.net.ssl._
 import java.security.cert.X509Certificate
-import com.google.inject.{AbstractModule, Inject}
 import org.xml.sax.Attributes
 import org.xml.sax.helpers.DefaultHandler
 import java.io.{InputStreamReader, UnsupportedEncodingException, IOException}
@@ -14,10 +13,47 @@ import nu.validator.htmlparser.common.{Heuristics, XmlViolationPolicy}
 import nu.validator.htmlparser.sax.HtmlParser
 import org.xml.sax.{InputSource, SAXException}
 import util.control.Breaks._
-import Util._
-import com.google.inject.multibindings.Multibinder
-import javax.inject.Singleton
+import alisa._
+import alisa.util.Misc
+import Misc._
 import annotation.tailrec
+import scala.Some
+import alisa.util.{Logger, LimitedInputStream}
+
+final class UrlInfoProvider extends ModuleProvider {
+
+	def DEF_DL_LIMIT = 100000
+
+	def DEF_CONN_TIMEOUT = 15000
+
+	def DEF_SO_TIMEOUT = 15000
+
+	val name = "urlinfo"
+
+	def create(params: Map[String, AnyRef]) = {
+		val dlLimit = params
+				.get("dlLimit")
+				.map(_.asInstanceOf[Int])
+				.getOrElse(DEF_DL_LIMIT)
+		val connTimeout = params
+				.get("connTimeout")
+				.map(_.asInstanceOf[Int])
+				.getOrElse(DEF_CONN_TIMEOUT)
+		val soTimeout = params
+				.get("soTimeout")
+				.map(_.asInstanceOf[Int])
+				.getOrElse(DEF_SO_TIMEOUT)
+		val config = new UrlInfoConfig(dlLimit, connTimeout, soTimeout)
+		new UrlInfoModule(config)
+	}
+}
+
+final class UrlInfoModule(config: UrlInfoConfig) extends Module {
+
+	override def handlers = Some(new UrlInfoHandlers(config))
+}
+
+final case class UrlInfoConfig(dlLimit: Long, connTimeout: Int, soTimeout: Int) {}
 
 object UrlInfoCommon extends Logger {
 
@@ -336,24 +372,7 @@ object UrlInfoCommon extends Logger {
 	}
 }
 
-object UrlInfo {
-
-	def apply(dlLimit: Long = 30000, connTimeout: Int = 15000, soTimeout: Int = 15000) =
-		new UrlInfo(UrlInfoConfig(dlLimit, connTimeout, soTimeout))
-}
-
-final class UrlInfo(config: UrlInfoConfig) extends AbstractModule {
-
-	def configure() {
-		bind(classOf[UrlInfoConfig]).toInstance(config)
-		Multibinder.newSetBinder(binder, classOf[ModuleHandlers]).addBinding.to(classOf[UrlInfoHandlers])
-	}
-}
-
-final case class UrlInfoConfig(dlLimit: Long, connTimeout: Int, soTimeout: Int)
-
-@Singleton
-final class UrlInfoHandlers @Inject()(val config: UrlInfoConfig) extends ModuleHandlers {
+final class UrlInfoHandlers(val config: UrlInfoConfig) extends ModuleHandlers {
 
 	override val message = Some(new IrcEventHandler[IrcMessageEvent] {
 

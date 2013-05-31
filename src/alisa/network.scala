@@ -10,6 +10,7 @@ import java.nio.CharBuffer
 import com.ibm.icu.text.CharsetDetector
 import java.nio.charset.spi.CharsetProvider
 import scala.collection.JavaConversions._
+import alisa.util.{Misc, Logger, ByteBufferInputStream}
 
 object AlisaNetworkCommon {
 
@@ -18,8 +19,7 @@ object AlisaNetworkCommon {
 	final val OUTPUT_CHARSET = Charset.forName("utf-8")
 }
 
-final class AlisaNetwork(globalConf: GlobalConfig,
-                         val networkConf: NetworkConfig,
+final class AlisaNetwork(networkConf: NetworkConfig,
                          handlerLists: IrcEventHandlerLists) extends PircBot with Logger {
 
 	import AlisaNetworkCommon._
@@ -30,7 +30,6 @@ final class AlisaNetwork(globalConf: GlobalConfig,
 	private var destroy = false
 	private var executor: ExecutorService = _
 
-	setVerbose(globalConf.verbose)
 	setName(networkConf.nick)
 	setLogin(getName)
 	setFinger(networkConf.finger)
@@ -162,7 +161,7 @@ final class AlisaNetwork(globalConf: GlobalConfig,
 	override protected def logMsg(msg: => String) = "[" + networkConf.name + "] " + msg
 
 	def decodeMessage(msg: String) = {
-		logDebug("Decoding message \"" + Util.escapeStringASCII(msg) + "\"")
+		logDebug("Decoding message \"" + Misc.escapeStringASCII(msg) + "\"")
 
 		if (msg.forall(_ < 0x80)) {
 			logDebug("Not decoding ASCII message")

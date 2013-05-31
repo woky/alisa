@@ -1,7 +1,5 @@
 package alisa
 
-import com.google.inject.Module
-
 
 case class ServerConfig(host: String,
                         port: Int = 6667,
@@ -16,10 +14,9 @@ case class NetworkConfig(name: String,
 
 case class ChannelConfig(name: String)
 
-case class GlobalConfig(verbose: Boolean = false,
-                        maxMsgSize: Int = 512)
+case class ModuleConfig(name: String,
+                        params: Map[String, AnyRef])
 
-case class Config(global: GlobalConfig = new GlobalConfig,
-                  networks: Seq[NetworkConfig],
-                  handlers: List[ModuleHandlers] = Nil,
-                  modules: List[Module] = Nil)
+case class AlisaConfig(verbose: Boolean,
+                       networks: List[NetworkConfig],
+                       modules: List[ModuleConfig])

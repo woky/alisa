@@ -1,0 +1,5 @@
+alisa.modules.Cointoss
+alisa.modules.hugs.Hugs
+alisa.modules.log.LogProvider
+alisa.modules.UrlInfoProvider
+alisa.modules.UnknownCmd
