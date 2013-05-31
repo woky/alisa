@@ -52,8 +52,8 @@ object Alisa extends Logger {
 		val mods = startModules(config.modules)
 
 		val nets = mods.flatMap(mods => {
-			val handlers = mods.foldRight(IrcEventHandlerLists())({
-				(mod, list) =>
+			val handlers = mods.foldLeft(IrcEventHandlerLists())({
+				(list, mod) =>
 					mod.handlers match {
 						case Some(handler) => handler :: list
 						case None => list

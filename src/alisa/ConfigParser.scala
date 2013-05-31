@@ -15,8 +15,8 @@ object ConfigParser extends Logger {
 	def parseFile(file: File): AlisaConfig = build(ConfigFactory.parseFile(file))
 
 	def build(conf: Config): AlisaConfig = {
-		val networks = conf.getList("networks").toList.map(mkNetworkConfig).reverse
-		val modules = conf.getList("modules").toList.map(mkModuleConfig).reverse
+		val networks = conf.getList("networks").toList.map(mkNetworkConfig)
+		val modules = conf.getList("modules").toList.map(mkModuleConfig)
 		val verbose =
 			if (conf.hasPath("verbose"))
 				conf.getBoolean("verbose")
@@ -58,8 +58,8 @@ object ConfigParser extends Logger {
 					conf.getString("finger")
 				else
 					nick
-			val servers = conf.getList("servers").toList.map(mkServerConfig).reverse
-			val channels = conf.getList("channels").toList.map(mkChannelConfig).reverse
+			val servers = conf.getList("servers").toList.map(mkServerConfig)
+			val channels = conf.getList("channels").toList.map(mkChannelConfig)
 
 			NetworkConfig(name, nick, finger, servers, channels)
 		} else {
