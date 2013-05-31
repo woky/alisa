@@ -69,7 +69,7 @@ object Alisa extends Logger {
 
 		nets.recover {
 			case e: Exception => {
-				e.printStackTrace
+				logError("Init failed", e)
 				System.exit(1)
 			}
 		}
