@@ -8,7 +8,7 @@ import org.xml.sax.helpers.DefaultHandler
 import java.io.{InputStreamReader, UnsupportedEncodingException, IOException}
 import java.net._
 import java.nio.{BufferOverflowException, CharBuffer}
-import java.nio.charset.Charset
+import java.nio.charset.{IllegalCharsetNameException, Charset}
 import nu.validator.htmlparser.common.{Heuristics, XmlViolationPolicy}
 import nu.validator.htmlparser.sax.HtmlParser
 import org.xml.sax.{InputSource, SAXException}
@@ -294,7 +294,8 @@ object UrlInfoCommon extends Logger {
 									try {
 										Some(Charset.forName(name))
 									} catch {
-										case e: UnsupportedEncodingException => {
+										case e@(_: UnsupportedEncodingException |
+												_: IllegalCharsetNameException) => {
 											logUrlError(url, s"Unknown encoding: $name", e)
 											None
 										}
