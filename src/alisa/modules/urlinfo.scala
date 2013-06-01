@@ -407,11 +407,13 @@ final class UrlInfoHandlers(val config: UrlInfoConfig) extends ModuleHandlers {
 							buf
 						}
 						case e: IOException => {
-							logUrlError(url, "Request failed", e)
 							"request failed: " + (e match {
 								case e: UnknownHostException => "invalid hostname " + e.getMessage
 								case e@(_: SocketTimeoutException | _: SocketException) => e.getMessage
-								case _ => e.getMessage
+								case _ => {
+									logUrlError(url, "Request failed", e)
+									e.getMessage
+								}
 							})
 						}
 					}
