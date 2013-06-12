@@ -3,7 +3,7 @@ package alisa
 import scala.collection.JavaConversions._
 import sun.misc.{SignalHandler, Signal}
 import joptsimple.OptionParser
-import java.util.logging.{Logger => JDKLogger, Level}
+import java.util.logging.{Logger => JDKLogger, ConsoleHandler, LogManager, Level}
 import scala.util.Try
 import scala.Some
 import alisa.util.Logger
@@ -134,11 +134,16 @@ object Alisa extends Logger {
 	}
 
 	def initLogging(debug: Boolean) {
-		val level =
-			if (debug)
-				Level.FINEST
-			else
-				Level.INFO
-		JDKLogger.getLogger(JDKLogger.GLOBAL_LOGGER_NAME).setLevel(level)
+		LogManager.getLogManager.reset
+		System.setProperty(
+			"java.util.logging.SimpleFormatter.format",
+			"%1tc %4$s [%3$s] %5$s%6$s%n")
+		val root = JDKLogger.getLogger("")
+		val level = if (debug) Level.FINEST else Level.INFO
+		root.setLevel(level)
+		root.addHandler(new ConsoleHandler {
+			setOutputStream(System.out)
+			setLevel(level)
+		})
 	}
 }
