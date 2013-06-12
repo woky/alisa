@@ -16,7 +16,7 @@ object AlisaBuild extends Build {
 		"pircbot" % "pircbot" % "1.5.0",
 		"nu.validator.htmlparser" % "htmlparser" % "1.4",
 		"com.ibm.icu" % "icu4j" % "51.2",
-		"net.sf.jopt-simple" % "jopt-simple" % "4.3",
+		"net.sf.jopt-simple" % "jopt-simple" % "4.5",
 		"org.apache.lucene" % "lucene-core" % "4.3.0",
 		"org.apache.lucene" % "lucene-analyzers-common" % "4.3.0",
 		"org.apache.lucene" % "lucene-queryparser" % "4.3.0",
