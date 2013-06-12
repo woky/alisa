@@ -11,18 +11,20 @@ trait IrcEvent {
 
 case class IrcUser(nick: String, login: String, hostname: String)
 
+case class IrcText(text: String, decoded: String)
+
 case class IrcMessageEvent(network: IrcNetwork,
                            channel: String,
 						   user: IrcUser,
-                           message: String) extends IrcEvent
+                           message: IrcText) extends IrcEvent
 
 case class IrcCommandEvent(network: IrcNetwork,
                            channel: String,
 						   user: IrcUser,
                            command: String,
-                           args: String) extends IrcEvent
+                           args: IrcText) extends IrcEvent
 
 case class IrcActionEvent(network: IrcNetwork,
 						  user: IrcUser,
                           target: String,
-                          action: String) extends IrcEvent
+                          action: IrcText) extends IrcEvent

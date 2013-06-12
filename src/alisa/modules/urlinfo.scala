@@ -395,7 +395,7 @@ final class UrlInfoHandlers(val config: UrlInfoConfig) extends ModuleHandlers {
 			val buf = CharBuffer.allocate(MAX_URL_INFO_LENGTH)
 			val exBuf = new UrlInfoMessageBuffer(buf)
 
-			for (url <- findUrls(event.message).filter(allowedUrl)) {
+			for (url <- findUrls(event.message.decoded).filter(allowedUrl)) {
 				buf.position(0)
 				buf.limit(buf.capacity - LONG_MSG_SUFFIX.length)
 

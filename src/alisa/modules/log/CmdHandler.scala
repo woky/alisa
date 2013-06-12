@@ -21,7 +21,7 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 		val channel = event.channel
 		val sender = event.user.nick
 
-		val args = mkArgs(event.args, Some(sender), 2)
+		val args = mkArgs(event.args.decoded, Some(sender), 2)
 		args match {
 			case subcmd :: subargs => subcmd match {
 				case "link" => subargs match {

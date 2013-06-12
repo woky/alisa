@@ -14,7 +14,7 @@ object CmdHandler extends SimpleCommandHandler("hug") {
 		val channel = event.channel
 		val sender = event.user.nick
 
-		val targets = mkArgs(event.args, Some(sender))
+		val targets = mkArgs(event.args.decoded, Some(sender))
 		val presentNicks = bot.getUsers(channel).map(_.getNick).toSet
 
 		val replies = for (target <- targets) yield {

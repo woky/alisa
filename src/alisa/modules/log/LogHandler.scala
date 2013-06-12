@@ -16,5 +16,5 @@ final class LogHandler(lucene: LuceneService) extends IrcEventHandler[IrcMessage
 			event.user.nick,
 			event.user.login,
 			event.user.hostname,
-			event.message)
+			event.message.decoded) // TODO store original text
 }

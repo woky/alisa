@@ -14,7 +14,7 @@ object ActionHandler extends IrcEventHandler[IrcActionEvent] {
 		val channel = event.target
 		val sender = event.user.nick
 
-		val actParts = mkArgs(event.action, limit = 2, regex = WS_SPLIT_REGEX)
+		val actParts = mkArgs(event.action.decoded, limit = 2, regex = WS_SPLIT_REGEX)
 		actParts match {
 			case (cmd :: args :: Nil) if cmd.equals("hugs") => {
 				val targets = mkArgs(args, Some(sender))

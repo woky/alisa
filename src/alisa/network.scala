@@ -1,6 +1,6 @@
 package alisa
 
-import org.jibble.pircbot.{IrcException, PircBot}
+import org.jibble.pircbot.{Colors, IrcException, PircBot}
 import java.io.IOException
 import java.util.regex.Pattern
 import scala.Some
@@ -42,23 +42,22 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		networkReconnect
 
 	override def onMessage(channel: String, sender: String, login: String, hostname: String, rawMessage: String) {
-		val message = decodeMessage(rawMessage)
-
-		parseCommand(message) match {
-			case Some((command, args)) => {
+		parseCommand(rawMessage) match {
+			case Some((command, rawArgs)) => {
+				val args = mkIrcText(rawArgs)
 				val event = IrcCommandEvent(eventContext, channel, IrcUser(sender, login, hostname), command, args)
 				handleEventAsync(event, handlerLists.command.list)
 			}
 			case None => {
-				val event = IrcMessageEvent(eventContext, channel, IrcUser(sender, login, hostname), message)
+				val msg = mkIrcText(rawMessage)
+				val event = IrcMessageEvent(eventContext, channel, IrcUser(sender, login, hostname), msg)
 				handleEventAsync(event, handlerLists.message.list)
 			}
 		}
 	}
 
 	override def onAction(sender: String, login: String, hostname: String, target: String, rawAction: String) {
-		val action = decodeMessage(rawAction)
-
+		val action = mkIrcText(rawAction)
 		val event = IrcActionEvent(eventContext, IrcUser(sender, login, hostname), target, action)
 		handleEventAsync(event, handlerLists.action.list)
 	}
@@ -159,6 +158,9 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	}
 
 	override protected def logMsg(msg: => String) = "[" + networkConf.name + "] " + msg
+
+	private def mkIrcText(orig: String) =
+		IrcText(orig, decodeMessage(Colors.removeFormattingAndColors(orig)))
 
 	def decodeMessage(msg: String) = {
 		logDebug("Decoding message \"" + Misc.escapeStringASCII(msg) + "\"")
