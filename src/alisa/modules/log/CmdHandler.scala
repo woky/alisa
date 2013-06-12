@@ -19,7 +19,7 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 		val bot = event.network.bot
 		val net = event.network.name
 		val channel = event.channel
-		val sender = event.sender
+		val sender = event.user.nick
 
 		val args = mkArgs(event.args, Some(sender), 2)
 		args match {

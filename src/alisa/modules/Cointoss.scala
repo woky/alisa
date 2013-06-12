@@ -7,6 +7,6 @@ final class Cointoss extends SimpleCmdModule("cointoss") with ModuleProvider {
 
 	def handleCommand(event: IrcCommandEvent) {
 		val result = if (Random.nextBoolean) "heads" else "tails"
-		event.network.bot.sendMessage(event.channel, s"${event.sender}, $result")
+		event.network.bot.sendMessage(event.channel, s"${event.user.nick}, $result")
 	}
 }

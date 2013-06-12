@@ -9,24 +9,20 @@ trait IrcEvent {
 	def network: IrcNetwork
 }
 
+case class IrcUser(nick: String, login: String, hostname: String)
+
 case class IrcMessageEvent(network: IrcNetwork,
                            channel: String,
-                           sender: String,
-                           login: String,
-                           hostname: String,
+						   user: IrcUser,
                            message: String) extends IrcEvent
 
 case class IrcCommandEvent(network: IrcNetwork,
                            channel: String,
-                           sender: String,
-                           login: String,
-                           hostname: String,
+						   user: IrcUser,
                            command: String,
                            args: String) extends IrcEvent
 
 case class IrcActionEvent(network: IrcNetwork,
-                          sender: String,
-                          login: String,
-                          hostname: String,
+						  user: IrcUser,
                           target: String,
                           action: String) extends IrcEvent

@@ -13,8 +13,8 @@ final class LogHandler(lucene: LuceneService) extends IrcEventHandler[IrcMessage
 		LuceneMessage(
 			LuceneChannel(event.network.name, event.channel),
 			System.currentTimeMillis,
-			event.sender,
-			event.login,
-			event.hostname,
+			event.user.nick,
+			event.user.login,
+			event.user.hostname,
 			event.message)
 }

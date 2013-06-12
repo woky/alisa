@@ -46,11 +46,11 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 
 		parseCommand(message) match {
 			case Some((command, args)) => {
-				val event = IrcCommandEvent(eventContext, channel, sender, login, hostname, command, args)
+				val event = IrcCommandEvent(eventContext, channel, IrcUser(sender, login, hostname), command, args)
 				handleEventAsync(event, handlerLists.command.list)
 			}
 			case None => {
-				val event = IrcMessageEvent(eventContext, channel, sender, login, hostname, message)
+				val event = IrcMessageEvent(eventContext, channel, IrcUser(sender, login, hostname), message)
 				handleEventAsync(event, handlerLists.message.list)
 			}
 		}
@@ -59,7 +59,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	override def onAction(sender: String, login: String, hostname: String, target: String, rawAction: String) {
 		val action = decodeMessage(rawAction)
 
-		val event = IrcActionEvent(eventContext, sender, login, hostname, target, action)
+		val event = IrcActionEvent(eventContext, IrcUser(sender, login, hostname), target, action)
 		handleEventAsync(event, handlerLists.action.list)
 	}
 
