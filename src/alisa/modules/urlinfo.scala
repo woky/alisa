@@ -323,6 +323,7 @@ object UrlInfoCommon extends Logger {
 								parser.parse(xmlSource)
 							} catch {
 								case extractor.breakEx =>
+								case buf.overflowEx =>
 							}
 
 							if (buf.real.position == oldPos)
@@ -432,7 +433,7 @@ final class UrlInfoHandlers(val config: UrlInfoConfig) extends ModuleHandlers {
 
 final class UrlInfoMessageBuffer(val real: CharBuffer) {
 
-	val overflowEx = new Exception
+	val overflowEx = new RuntimeException
 
 	def append(c: Char) {
 		try {
