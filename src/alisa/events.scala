@@ -28,3 +28,7 @@ case class IrcActionEvent(network: IrcNetwork,
 						  user: IrcUser,
                           target: String,
                           action: IrcText) extends IrcEvent
+
+case class IrcPrivMsgEvent(network: IrcNetwork,
+						   user: IrcUser,
+						   message: IrcText) extends IrcEvent

@@ -63,6 +63,13 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		handleEventAsync(event)
 	}
 
+
+	override def onPrivateMessage(sender: String, login: String, hostname: String, rawMessage: String) {
+		val message = mkIrcText(rawMessage)
+		val event = new IrcPrivMsgEvent(eventContext, IrcUser(sender, login, hostname), message)
+		handleEventAsync(event)
+	}
+
 	def parseCommand(message: String) = {
 		val matcher = cmdRegex.matcher(message)
 		if (matcher.matches) {
