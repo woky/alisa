@@ -20,7 +20,7 @@ object AlisaBuild extends Build {
 		"org.apache.lucene" % "lucene-core" % "4.3.0",
 		"org.apache.lucene" % "lucene-analyzers-common" % "4.3.0",
 		"org.apache.lucene" % "lucene-queryparser" % "4.3.0",
-		"com.google.guava" % "guava" % "13.0.1",
+		"com.google.guava" % "guava" % "14.0.1",
 		"com.google.code.findbugs" % "jsr305" % "2.0.1"
 		/*
 		"org.scala-lang" % "scala-reflect" % scalaVer,
