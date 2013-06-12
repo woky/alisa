@@ -26,7 +26,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	import AlisaNetworkCommon._
 
 	val cmdRegex: Pattern = Pattern.compile(s"^${networkConf.nick}\\s*[:, ]\\s*(\\S+)(?:\\s+(.+))?\\s*$$")
-	val eventContext = IrcNetwork(networkConf.name, this)
+	val network = IrcNetwork(networkConf.name, this)
 
 	private var destroy = false
 	private var executor: ExecutorService = _
@@ -46,12 +46,12 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		parseCommand(rawMessage) match {
 			case Some((command, rawArgs)) => {
 				val args = mkIrcText(rawArgs)
-				val event = IrcCommandEvent(eventContext, channel, IrcUser(sender, login, hostname), command, args)
+				val event = IrcCommandEvent(network, channel, IrcUser(sender, login, hostname), command, args)
 				handleEventAsync(event)
 			}
 			case None => {
 				val msg = mkIrcText(rawMessage)
-				val event = IrcMessageEvent(eventContext, channel, IrcUser(sender, login, hostname), msg)
+				val event = IrcMessageEvent(network, channel, IrcUser(sender, login, hostname), msg)
 				handleEventAsync(event)
 			}
 		}
@@ -59,14 +59,14 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 
 	override def onAction(sender: String, login: String, hostname: String, target: String, rawAction: String) {
 		val action = mkIrcText(rawAction)
-		val event = IrcActionEvent(eventContext, IrcUser(sender, login, hostname), target, action)
+		val event = IrcActionEvent(network, IrcUser(sender, login, hostname), target, action)
 		handleEventAsync(event)
 	}
 
 
 	override def onPrivateMessage(sender: String, login: String, hostname: String, rawMessage: String) {
 		val message = mkIrcText(rawMessage)
-		val event = new IrcPrivMsgEvent(eventContext, IrcUser(sender, login, hostname), message)
+		val event = new IrcPrivMsgEvent(network, IrcUser(sender, login, hostname), message)
 		handleEventAsync(event)
 	}
 
