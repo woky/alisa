@@ -66,7 +66,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 
 	override def onPrivateMessage(sender: String, login: String, hostname: String, rawMessage: String) {
 		val message = mkIrcText(rawMessage)
-		val event = new IrcPrivMsgEvent(network, IrcUser(sender, login, hostname), message)
+		val event = IrcPrivMsgEvent(network, IrcUser(sender, login, hostname), message)
 		handleEventAsync(event)
 	}
 
