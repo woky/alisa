@@ -32,7 +32,7 @@ object Alisa extends Logger {
 
 		val config =
 			if (newArgs.length > 0)
-				ConfigParser.parseFile(newArgs(0))
+				ConfigParser.parseFile(newArgs(0).toString)
 			else
 				ConfigParser.parseFile(TEST_CONFIG)
 
