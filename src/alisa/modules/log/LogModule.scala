@@ -2,11 +2,11 @@ package alisa.modules.log
 
 import org.apache.lucene.store.Directory
 import java.net.InetSocketAddress
-import alisa.{ModuleHandlers, Module}
+import alisa._
 import alisa.util.Logger
 
 final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: Int)
-		extends Module with ModuleHandlers with Logger {
+		extends Module with IrcEventHandler with Logger {
 
 	private val allowedIds = new AllowedIds(idTtl)
 
@@ -36,9 +36,23 @@ final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: I
 		}
 	}
 
-	override def handlers = Some(this)
+	override def handler = Some(this)
 
-	override val command = Some(new CmdHandler(allowedIds, lucene, httpAddr))
+	def handles = Set(classOf[IrcCommandEvent], classOf[IrcActionEvent])
 
-	override val message = Some(new LogHandler(lucene))
+	private val cmdHandler = new CmdHandler(allowedIds, lucene, httpAddr)
+
+	def handle(event: IrcEvent): Boolean = event match {
+		case cmd: IrcCommandEvent => cmdHandler.handle(cmd)
+		case msg: IrcMessageEvent => {
+			lucene.addMessage(LuceneMessage(
+				LuceneChannel(event.network.name, msg.channel),
+				System.currentTimeMillis,
+				msg.user.nick,
+				msg.user.login,
+				msg.user.hostname,
+				msg.message.decoded /* TODO store original text */))
+			true
+		}
+	}
 }

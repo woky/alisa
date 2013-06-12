@@ -2,15 +2,19 @@ package alisa.modules.hugs
 
 import alisa._
 
-final class Hugs extends Module with ModuleProvider with ModuleHandlers {
-
-	override def handlers = Some(this)
+final class Hugs extends Module with ModuleProvider {
 
 	val name = "hugs"
 
 	def create(params: Map[String, AnyRef]) = this
 
-	override val command = Some(CmdHandler)
+	override def handler = Some(new IrcEventHandler {
 
-	override val action = Some(ActionHandler)
+		def handles = Set(classOf[IrcCommandEvent], classOf[IrcActionEvent])
+
+		def handle(event: IrcEvent): Boolean = event match {
+			case e: IrcCommandEvent => CmdHandler.handle(e)
+			case e: IrcActionEvent => ActionHandler.handleAction(e)
+		}
+	})
 }

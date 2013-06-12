@@ -5,8 +5,8 @@ import sun.misc.{SignalHandler, Signal}
 import joptsimple.OptionParser
 import java.util.logging.{Logger => JDKLogger, ConsoleHandler, LogManager, Level}
 import scala.util.Try
-import scala.Some
 import alisa.util.Logger
+import IrcEventHandlers._
 
 object Alisa extends Logger {
 
@@ -52,13 +52,7 @@ object Alisa extends Logger {
 		val mods = startModules(config.modules)
 
 		val nets = mods.flatMap(mods => {
-			val handlers = mods.foldLeft(IrcEventHandlerLists())({
-				(list, mod) =>
-					mod.handlers match {
-						case Some(handler) => handler :: list
-						case None => list
-					}
-			})
+			val handlers = mkHandlerMap(mods.map(_.handler).filter(_.isDefined).map(_.get))
 			startNetworks(config.networks, handlers)
 		})
 
@@ -105,7 +99,7 @@ object Alisa extends Logger {
 			}
 	}
 
-	def startNetworks(configs: List[NetworkConfig], handlers: IrcEventHandlerLists): Try[List[AlisaNetwork]] = {
+	def startNetworks(configs: List[NetworkConfig], handlers: HandlerMap): Try[List[AlisaNetwork]] = {
 		def iter(remaining: List[NetworkConfig], networks: List[AlisaNetwork]): List[AlisaNetwork] = {
 			remaining match {
 				case conf :: xs =>

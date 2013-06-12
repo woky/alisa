@@ -47,11 +47,6 @@ final class UrlInfoProvider extends ModuleProvider {
 	}
 }
 
-final class UrlInfoModule(config: UrlInfoConfig) extends Module {
-
-	override def handlers = Some(new UrlInfoHandlers(config))
-}
-
 final case class UrlInfoConfig(dlLimit: Long, connTimeout: Int, soTimeout: Int) {}
 
 object UrlInfoCommon extends Logger {
@@ -377,25 +372,28 @@ object UrlInfoCommon extends Logger {
 	}
 }
 
-final class UrlInfoHandlers(val config: UrlInfoConfig) extends ModuleHandlers {
+final class UrlInfoModule(val config: UrlInfoConfig) extends Module with IrcEventHandler {
 
-	override val message = Some(new IrcEventHandler[IrcMessageEvent] {
+	override def handler = Some(this)
 
-		def allowedUrl(url: URL): Boolean =
-			try {
-				InetAddress.getAllByName(url.getHost)
-						.forall(a => !a.isLoopbackAddress && !a.isSiteLocalAddress)
-			} catch {
-				case _: UnknownHostException => true
-			}
+	override def handles = Set(classOf[IrcMessageEvent])
 
-		def handle(event: IrcMessageEvent) = {
+	override def handle(event: IrcEvent): Boolean = event match {
+		case e: IrcMessageEvent => {
 			import UrlInfoCommon._
 
 			val buf = CharBuffer.allocate(MAX_URL_INFO_LENGTH)
 			val exBuf = new UrlInfoMessageBuffer(buf)
 
-			for (url <- findUrls(event.message.decoded).filter(allowedUrl)) {
+			def allowedUrl(url: URL): Boolean =
+				try {
+					InetAddress.getAllByName(url.getHost)
+							.forall(a => !a.isLoopbackAddress && !a.isSiteLocalAddress)
+				} catch {
+					case _: UnknownHostException => true
+				}
+
+			for (url <- findUrls(e.message.decoded).filter(allowedUrl)) {
 				buf.position(0)
 				buf.limit(buf.capacity - LONG_MSG_SUFFIX.length)
 
@@ -424,12 +422,12 @@ final class UrlInfoHandlers(val config: UrlInfoConfig) extends ModuleHandlers {
 					}
 
 				if (msg.length > 0)
-					event.network.bot.sendMessage(event.channel, msg.toString)
+					event.network.bot.sendMessage(e.channel, msg.toString)
 			}
 
 			true
 		}
-	})
+	}
 }
 
 final class UrlInfoMessageBuffer(val real: CharBuffer) {
@@ -456,6 +454,7 @@ final class UrlInfoMessageBuffer(val real: CharBuffer) {
 final class UrlInfoTitleExtractor(buf: UrlInfoMessageBuffer) extends DefaultHandler {
 
 	val breakEx = new IOException
+
 	private def break {
 		throw breakEx
 	}

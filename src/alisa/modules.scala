@@ -3,17 +3,11 @@ package alisa
 import java.util.ServiceLoader
 import scala.collection.JavaConversions._
 
-trait ModuleHandlers {
-	val message: Option[IrcEventHandler[IrcMessageEvent]] = None
-	val command: Option[IrcEventHandler[IrcCommandEvent]] = None
-	val action: Option[IrcEventHandler[IrcActionEvent]] = None
-}
-
 abstract class Module {
 
 	def stop {}
 
-	def handlers: Option[ModuleHandlers]
+	def handler: Option[IrcEventHandler]
 }
 
 trait ModuleProvider {
@@ -34,39 +28,54 @@ final class ModuleFactory {
 	def create(name: String, params: Map[String, AnyRef]) = providerMap(name).create(params)
 }
 
-sealed abstract class SimpleModule[T <: IrcEvent](val name: String)
+sealed abstract class SimpleModule(final val name: String)
 		extends Module
 		with ModuleProvider
-		with ModuleHandlers
-		with IrcEventHandler[T] {
+		with IrcEventHandler {
 
-	final override def handlers = Some(this)
+	final override def handler = Some(this)
 
 	final def create(params: Map[String, AnyRef]) = this
 }
 
-abstract class SimpleMessageModule(name: String) extends SimpleModule[IrcMessageEvent](name) {
+/*
+ * TODO remove following soon
+ */
 
-	final override val message = Some(this)
+abstract class SimpleMessageModule(name: String) extends SimpleModule(name) {
+
+	final def handles = Set(classOf[IrcMessageEvent])
+
+	final def handle(event: IrcEvent) = event match {
+		case e: IrcMessageEvent => handleMessage(e)
+	}
+
+	def handleMessage(event: IrcEvent): Boolean
 }
 
-abstract class SimpleAnyCmdModule(name: String) extends SimpleModule[IrcCommandEvent](name) {
+abstract class SimpleAnyCmdModule(name: String) extends SimpleModule(name) {
 
-	final override val command = Some(this)
+	final def handles = Set(classOf[IrcCommandEvent])
+
+	final def handle(event: IrcEvent) = event match {
+		case e: IrcCommandEvent => handleCommand(e)
+	}
+
+	def handleCommand(event: IrcCommandEvent): Boolean
 }
 
-abstract class SimpleCmdModule(name: String, cmd: String) extends SimpleAnyCmdModule(name) {
+abstract class SimpleCmdModule(final val name: String, cmd: String)
+		extends Module with ModuleProvider {
 
 	def this(name: String) = this(name, name)
 
-	final def handle(event: IrcCommandEvent) = {
-		if (cmd == event.command) {
-			handleCommand(event)
-			false
-		} else {
-			true
+	final override def handler = Some(new SimpleCommandHandler(cmd) {
+		def handleCommand(event: IrcCommandEvent) {
+			SimpleCmdModule.this.handleCommand(event)
 		}
-	}
+	})
+
+	final def create(params: Map[String, AnyRef]) = this
 
 	def handleCommand(event: IrcCommandEvent)
 }

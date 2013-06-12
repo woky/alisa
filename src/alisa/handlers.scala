@@ -1,39 +1,34 @@
 package alisa
 
-trait IrcEventHandler[E <: IrcEvent] {
+object IrcEventHandlers {
 
-	def handle(event: E): Boolean
+	type HandlerMap = Map[Class[_ <: IrcEvent], List[IrcEventHandler]]
+
+	def mkHandlerMap(list: List[IrcEventHandler]): HandlerMap =
+		list.flatMap(h => h.handles.map(t => (t -> h))).groupBy(_._1)
+				.map(p => p._1 -> p._2.map(pp => pp._2).reverse).toMap // XXX ugly
 }
 
-case class IrcEventHandlerList[E <: IrcEvent](list: List[IrcEventHandler[E]] = Nil) {
+trait IrcEventHandler {
 
-	def ::(x: Option[IrcEventHandler[E]]) =
-		IrcEventHandlerList(
-			list = x match {
-				case Some(h) => h :: list
-				case None => list
-			})
+	def handles: Set[Class[_ <: IrcEvent]]
+
+	// TODO use PartialFunction?
+	def handle(event: IrcEvent): Boolean
 }
 
-case class IrcEventHandlerLists(message: IrcEventHandlerList[IrcMessageEvent] = IrcEventHandlerList(),
-                                command: IrcEventHandlerList[IrcCommandEvent] = IrcEventHandlerList(),
-                                action: IrcEventHandlerList[IrcActionEvent] = IrcEventHandlerList()) {
+abstract class SimpleCommandHandler(val command: String) extends IrcEventHandler {
 
-	def ::(x: ModuleHandlers) =
-		IrcEventHandlerLists(message = x.message :: message,
-			command = x.command :: command,
-			action = x.action :: action)
-}
+	def handles = Set(classOf[IrcCommandEvent])
 
-abstract class SimpleCommandHandler(val command: String) extends IrcEventHandler[IrcCommandEvent] {
-
-	final def handle(event: IrcCommandEvent) = {
-		if (this.command == event.command) {
-			handleCommand(event)
-
-			false
-		} else {
-			true
+	final def handle(event: IrcEvent) = event match {
+		case e: IrcCommandEvent => {
+			if (this.command == e.command) {
+				handleCommand(e)
+				false
+			} else {
+				true
+			}
 		}
 	}
 

@@ -11,6 +11,7 @@ import com.ibm.icu.text.CharsetDetector
 import java.nio.charset.spi.CharsetProvider
 import scala.collection.JavaConversions._
 import alisa.util.{Misc, Logger, ByteBufferInputStream}
+import IrcEventHandlers._
 
 object AlisaNetworkCommon {
 
@@ -20,7 +21,7 @@ object AlisaNetworkCommon {
 }
 
 final class AlisaNetwork(networkConf: NetworkConfig,
-                         handlerLists: IrcEventHandlerLists) extends PircBot with Logger {
+                         handlerMap: HandlerMap) extends PircBot with Logger {
 
 	import AlisaNetworkCommon._
 
@@ -46,12 +47,12 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 			case Some((command, rawArgs)) => {
 				val args = mkIrcText(rawArgs)
 				val event = IrcCommandEvent(eventContext, channel, IrcUser(sender, login, hostname), command, args)
-				handleEventAsync(event, handlerLists.command.list)
+				handleEventAsync(event)
 			}
 			case None => {
 				val msg = mkIrcText(rawMessage)
 				val event = IrcMessageEvent(eventContext, channel, IrcUser(sender, login, hostname), msg)
-				handleEventAsync(event, handlerLists.message.list)
+				handleEventAsync(event)
 			}
 		}
 	}
@@ -59,7 +60,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	override def onAction(sender: String, login: String, hostname: String, target: String, rawAction: String) {
 		val action = mkIrcText(rawAction)
 		val event = IrcActionEvent(eventContext, IrcUser(sender, login, hostname), target, action)
-		handleEventAsync(event, handlerLists.action.list)
+		handleEventAsync(event)
 	}
 
 	def parseCommand(message: String) = {
@@ -76,11 +77,11 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		}
 	}
 
-	def handleEventAsync[E <: IrcEvent](event: E, handlers: List[IrcEventHandler[E]]) {
+	def handleEventAsync(event: IrcEvent) {
 		executor.submit(new Runnable {
 			def run {
 				try {
-					handleEvent(event, handlers)
+					handleEvent(event)
 				} catch {
 					case e: Throwable => logError("Exception while handling event " + event, e)
 				}
@@ -88,12 +89,19 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		})
 	}
 
-	def handleEvent[E <: IrcEvent](event: E, handlers: List[IrcEventHandler[E]]) {
-		handlers match {
-			case handler :: rest =>
-				if (handler.handle(event))
-					handleEvent(event, rest)
-			case Nil =>
+	def handleEvent(event: IrcEvent) {
+		def iterHandlers(handlers: List[IrcEventHandler]) {
+			handlers match {
+				case h :: xs =>
+					if (h.handle(event))
+						iterHandlers(xs)
+				case Nil =>
+			}
+		}
+
+		handlerMap.get(event.getClass) match {
+			case Some(handlers) => iterHandlers(handlers)
+			case None =>
 		}
 	}
 

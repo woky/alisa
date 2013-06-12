@@ -1,15 +1,14 @@
 package alisa.modules.hugs
 
-import alisa.IrcEventHandler
+import alisa.{IrcEvent, IrcEventHandler, IrcActionEvent}
 import alisa.util.Misc._
-import alisa.IrcActionEvent
 import scala.Some
 
-object ActionHandler extends IrcEventHandler[IrcActionEvent] {
+object ActionHandler extends IrcEventHandler {
 
 	import Common._
 
-	def handle(event: IrcActionEvent) = {
+	def handleAction(event: IrcActionEvent) = {
 		val bot = event.network.bot
 		val channel = event.target
 		val sender = event.user.nick
@@ -41,5 +40,11 @@ object ActionHandler extends IrcEventHandler[IrcActionEvent] {
 			}
 			case _ => true
 		}
+	}
+
+	def handles = Set(classOf[IrcActionEvent])
+
+	def handle(event: IrcEvent): Boolean = event match {
+		case e: IrcActionEvent => handleAction(e)
 	}
 }
