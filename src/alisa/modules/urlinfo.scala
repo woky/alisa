@@ -12,7 +12,6 @@ import java.nio.charset.Charset
 import nu.validator.htmlparser.common.{Heuristics, XmlViolationPolicy}
 import nu.validator.htmlparser.sax.HtmlParser
 import org.xml.sax.{InputSource, SAXException}
-import util.control.Breaks._
 import alisa._
 import alisa.util.Misc
 import Misc._
@@ -305,8 +304,10 @@ object UrlInfoCommon extends Logger {
 								}
 							}
 
+							val extractor = new UrlInfoTitleExtractor(buf)
 							val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
-							parser.setContentHandler(new UrlInfoTitleExtractor(buf))
+							parser.setContentHandler(extractor)
+							parser.setStreamabilityViolationPolicy(XmlViolationPolicy.FATAL)
 
 							val limInput = new LimitedInputStream(httpConn.getInputStream, config.dlLimit)
 							val xmlSource =
@@ -318,8 +319,10 @@ object UrlInfoCommon extends Logger {
 									new InputSource(limInput)
 								}
 
-							breakable {
+							try {
 								parser.parse(xmlSource)
+							} catch {
+								case extractor.breakEx =>
 							}
 
 							if (buf.real.position == oldPos)
@@ -449,6 +452,11 @@ final class UrlInfoMessageBuffer(val real: CharBuffer) {
 }
 
 final class UrlInfoTitleExtractor(buf: UrlInfoMessageBuffer) extends DefaultHandler {
+
+	val breakEx = new IOException
+	private def break {
+		throw breakEx
+	}
 
 	private object State extends Enumeration {
 		type State = Value
