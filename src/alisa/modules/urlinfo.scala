@@ -424,7 +424,7 @@ final class UrlInfoHandlers(val config: UrlInfoConfig) extends ModuleHandlers {
 					}
 
 				if (msg.length > 0)
-					event.context.bot.sendMessage(event.channel, msg.toString)
+					event.network.bot.sendMessage(event.channel, msg.toString)
 			}
 
 			true

@@ -2,21 +2,21 @@ package alisa
 
 import org.jibble.pircbot.PircBot
 
-case class IrcEventContext(network: String, bot: PircBot)
+case class IrcNetwork(name: String, bot: PircBot)
 
 trait IrcEvent {
 
-	def context: IrcEventContext
+	def network: IrcNetwork
 }
 
-case class IrcMessageEvent(context: IrcEventContext,
+case class IrcMessageEvent(network: IrcNetwork,
                            channel: String,
                            sender: String,
                            login: String,
                            hostname: String,
                            message: String) extends IrcEvent
 
-case class IrcCommandEvent(context: IrcEventContext,
+case class IrcCommandEvent(network: IrcNetwork,
                            channel: String,
                            sender: String,
                            login: String,
@@ -24,10 +24,9 @@ case class IrcCommandEvent(context: IrcEventContext,
                            command: String,
                            args: String) extends IrcEvent
 
-case class IrcActionEvent(context: IrcEventContext,
+case class IrcActionEvent(network: IrcNetwork,
                           sender: String,
                           login: String,
                           hostname: String,
                           target: String,
                           action: String) extends IrcEvent
-

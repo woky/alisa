@@ -10,7 +10,7 @@ object CmdHandler extends SimpleCommandHandler("hug") {
 	import Common._
 
 	def handleCommand(event: IrcCommandEvent) {
-		val bot = event.context.bot
+		val bot = event.network.bot
 		val channel = event.channel
 		val sender = event.sender
 

@@ -16,8 +16,8 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 	import SearchCommon._
 
 	def handleCommand(event: IrcCommandEvent) {
-		val bot = event.context.bot
-		val net = event.context.network
+		val bot = event.network.bot
+		val net = event.network.name
 		val channel = event.channel
 		val sender = event.sender
 

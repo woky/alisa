@@ -11,7 +11,7 @@ final class LogHandler(lucene: LuceneService) extends IrcEventHandler[IrcMessage
 
 	def convertMessage(event: IrcMessageEvent) =
 		LuceneMessage(
-			LuceneChannel(event.context.network, event.channel),
+			LuceneChannel(event.network.name, event.channel),
 			System.currentTimeMillis,
 			event.sender,
 			event.login,

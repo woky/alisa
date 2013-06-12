@@ -10,7 +10,7 @@ object ActionHandler extends IrcEventHandler[IrcActionEvent] {
 	import Common._
 
 	def handle(event: IrcActionEvent) = {
-		val bot = event.context.bot
+		val bot = event.network.bot
 		val channel = event.target
 		val sender = event.sender
 

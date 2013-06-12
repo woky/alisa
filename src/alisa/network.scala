@@ -25,7 +25,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	import AlisaNetworkCommon._
 
 	val cmdRegex: Pattern = Pattern.compile(s"^${networkConf.nick}\\s*[:, ]\\s*(\\S+)(?:\\s+(.+))?\\s*$$")
-	val eventContext = IrcEventContext(networkConf.name, this)
+	val eventContext = IrcNetwork(networkConf.name, this)
 
 	private var destroy = false
 	private var executor: ExecutorService = _

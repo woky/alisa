@@ -12,7 +12,7 @@ final class UnknownCmd extends SimpleAnyCmdModule("unknowncmd") {
 		"Shut up, p-pervert!")
 
 	def handle(event: IrcCommandEvent) = {
-		event.context.bot.sendMessage(event.channel, randomReply(shyReplies))
+		event.network.bot.sendMessage(event.channel, randomReply(shyReplies))
 		false
 	}
 }
