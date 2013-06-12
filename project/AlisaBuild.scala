@@ -17,9 +17,9 @@ object AlisaBuild extends Build {
 		"nu.validator.htmlparser" % "htmlparser" % "1.4",
 		"com.ibm.icu" % "icu4j" % "51.2",
 		"net.sf.jopt-simple" % "jopt-simple" % "4.3",
-		"org.apache.lucene" % "lucene-core" % "4.0.0",
-		"org.apache.lucene" % "lucene-analyzers-common" % "4.0.0",
-		"org.apache.lucene" % "lucene-queryparser" % "4.0.0",
+		"org.apache.lucene" % "lucene-core" % "4.3.0",
+		"org.apache.lucene" % "lucene-analyzers-common" % "4.3.0",
+		"org.apache.lucene" % "lucene-queryparser" % "4.3.0",
 		"com.google.guava" % "guava" % "13.0.1",
 		"com.google.code.findbugs" % "jsr305" % "2.0.1"
 		/*
