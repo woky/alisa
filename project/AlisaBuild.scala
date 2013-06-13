@@ -40,9 +40,15 @@ object AlisaBuild extends Build {
 		file("."),
 		settings = Defaults.defaultSettings ++ projectInfo ++ Seq(
 			scalaVersion := scalaVer,
+
 			scalaSource in Compile <<= baseDirectory / "src",
 			javaSource in Compile <<= baseDirectory / "src",
 			resourceDirectory in Compile <<= baseDirectory / "resources",
+
+			scalaSource in Test <<= baseDirectory / "test/src",
+			javaSource in Test <<= baseDirectory / "test/src",
+			resourceDirectory in Test <<= baseDirectory / "test/resources",
+
 			libraryDependencies ++= deps,
 			exportJars := true,
 			mainClass in(Compile, packageBin) := Some("alisa.Alisa")
