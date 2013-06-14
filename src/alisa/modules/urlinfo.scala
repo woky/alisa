@@ -378,7 +378,7 @@ final class UrlInfoModule(val config: UrlInfoConfig) extends Module with IrcEven
 
 	override def handles = Set(classOf[IrcMessageEvent])
 
-	override def handle(event: IrcEvent): Boolean = event match {
+	override def handle = {
 		case e: IrcMessageEvent => {
 			import UrlInfoCommon._
 
@@ -422,7 +422,7 @@ final class UrlInfoModule(val config: UrlInfoConfig) extends Module with IrcEven
 					}
 
 				if (msg.length > 0)
-					event.network.bot.sendMessage(e.channel, msg.toString)
+					e.network.bot.sendMessage(e.channel, msg.toString)
 			}
 
 			true

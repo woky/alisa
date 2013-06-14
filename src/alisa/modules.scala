@@ -46,7 +46,7 @@ abstract class SimpleMessageModule(name: String) extends SimpleModule(name) {
 
 	final def handles = Set(classOf[IrcMessageEvent])
 
-	final def handle(event: IrcEvent) = event match {
+	final def handle = {
 		case e: IrcMessageEvent => handleMessage(e)
 	}
 
@@ -57,7 +57,7 @@ abstract class SimpleAnyCmdModule(name: String) extends SimpleModule(name) {
 
 	final def handles = Set(classOf[IrcCommandEvent])
 
-	final def handle(event: IrcEvent) = event match {
+	final def handle = {
 		case e: IrcCommandEvent => handleCommand(e)
 	}
 
