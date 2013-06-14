@@ -42,11 +42,11 @@ final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: I
 
 	private val cmdHandler = new CmdHandler(allowedIds, lucene, httpAddr)
 
-	def handle(event: IrcEvent): Boolean = event match {
+	def handle = {
 		case cmd: IrcCommandEvent => cmdHandler.handle(cmd)
 		case msg: IrcMessageEvent => {
 			lucene.addMessage(LuceneMessage(
-				LuceneChannel(event.network.name, msg.channel),
+				LuceneChannel(msg.network.name, msg.channel),
 				System.currentTimeMillis,
 				msg.user.nick,
 				msg.user.login,
