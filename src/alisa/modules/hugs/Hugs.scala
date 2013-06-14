@@ -12,7 +12,7 @@ final class Hugs extends Module with ModuleProvider {
 
 		def handles = Set(classOf[IrcCommandEvent], classOf[IrcActionEvent])
 
-		def handle(event: IrcEvent): Boolean = event match {
+		def handle = {
 			case e: IrcCommandEvent => CmdHandler.handle(e)
 			case e: IrcActionEvent => ActionHandler.handleAction(e)
 		}

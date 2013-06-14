@@ -13,15 +13,14 @@ trait IrcEventHandler {
 
 	def handles: Set[Class[_ <: IrcEvent]]
 
-	// TODO use PartialFunction?
-	def handle(event: IrcEvent): Boolean
+	def handle: PartialFunction[IrcEvent, Boolean]
 }
 
 abstract class SimpleCommandHandler(val command: String) extends IrcEventHandler {
 
 	def handles = Set(classOf[IrcCommandEvent])
 
-	final def handle(event: IrcEvent) = event match {
+	final def handle = {
 		case e: IrcCommandEvent => {
 			if (this.command == e.command) {
 				handleCommand(e)

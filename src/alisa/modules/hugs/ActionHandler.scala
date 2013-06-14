@@ -44,7 +44,7 @@ object ActionHandler extends IrcEventHandler {
 
 	def handles = Set(classOf[IrcActionEvent])
 
-	def handle(event: IrcEvent): Boolean = event match {
+	def handle = {
 		case e: IrcActionEvent => handleAction(e)
 	}
 }
