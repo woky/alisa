@@ -70,6 +70,18 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		handleEventAsync(event)
 	}
 
+
+	override def onJoin(channel: String, sender: String, login: String, hostname: String) {
+		val event = IrcJoinEvent(network, channel, IrcUser(sender, login, hostname))
+		handleEventAsync(event)
+	}
+
+
+	override def onPart(channel: String, sender: String, login: String, hostname: String) {
+		val event = IrcPartEvent(network, channel, IrcUser(sender, login, hostname))
+		handleEventAsync(event)
+	}
+
 	def parseCommand(message: String) = {
 		val matcher = cmdRegex.matcher(message)
 		if (matcher.matches) {
