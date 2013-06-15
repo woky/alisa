@@ -32,7 +32,7 @@ object AlisaBuild extends Build {
 		 * Test dependencies
 		 */
 		"junit" % "junit" % "4.11" % "test",
-		"org.scalamock" %% "scalamock" % "3.0.1" % "test"
+		"org.scalamock" %% "scalamock-scalatest-support" % "3.0.1" % "test"
 	)
 
 	lazy val proj = Project(
