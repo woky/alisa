@@ -5,7 +5,11 @@ import java.util.regex.Pattern
 
 object MsgType extends Enumeration {
 	type MsgType = Value
-	val MSG, CMD, ACT, JOIN, PART = Value
+	val MSG  = Value("Message")
+	val CMD  = Value("Command")
+	val ACT  = Value("Action")
+	val JOIN = Value("Join")
+	val PART = Value("Part")
 }
 
 import MsgType._
