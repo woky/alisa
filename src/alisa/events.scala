@@ -1,8 +1,6 @@
 package alisa
 
-import org.jibble.pircbot.PircBot
-
-case class IrcNetwork(name: String, bot: PircBot)
+case class IrcNetwork(name: String, bot: AlisaNetwork)
 
 case class IrcUser(nick: String, login: String, hostname: String)
 

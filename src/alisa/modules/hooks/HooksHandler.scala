@@ -8,11 +8,13 @@ import scala.util.Random
 object HooksHandler {
 
 	type ChannelHooks = Map[(String, String), List[ChannelHook]]
+
+	final val CONFIG_CMD = "hook"
 }
 
 import HooksHandler._
 
-final class HooksHandler(chanHooks: ChannelHooks) extends IrcEventHandler {
+final class HooksHandler(private[hooks] var chanHooks: ChannelHooks) extends IrcEventHandler {
 
 	private type IrcChanEvt = IrcEvent with IrcChannelEvent
 	private type IrcChanUserEvt = IrcChanEvt with IrcUserEvent
@@ -47,7 +49,8 @@ final class HooksHandler(chanHooks: ChannelHooks) extends IrcEventHandler {
 
 	private case class HookEvt(ie: IrcChanUserEvt, text: Option[String])
 
-	private val chanEvtHooks = chanHooks.map { case (k, l) => (k -> mkEvtHooks(l)) }
+	private var chanEvtHooks = chanHooks.map { case (k, l) => (k -> mkEvtHooks(l)) }
+	private val cmdHandler = new CommandHandler(this)
 
 	def handles: Set[Class[_ <: IrcEvent]] =
 		Set(classOf[IrcMessageEvent],
@@ -57,8 +60,10 @@ final class HooksHandler(chanHooks: ChannelHooks) extends IrcEventHandler {
 		    classOf[IrcPartEvent])
 
 	def handle = {
-		case e: IrcMessageEvent =>  handleEvent(HookEvt(e, Some(e.message.decoded)), _.msg)
+		case e: IrcCommandEvent if e.command == CONFIG_CMD =>
+			handleEvent(HookEvt(e, Some(e.args.decoded)), _.cmd)
 		case e: IrcCommandEvent =>  handleEvent(HookEvt(e, Some(e.args.decoded)), _.cmd)
+		case e: IrcMessageEvent =>  handleEvent(HookEvt(e, Some(e.message.decoded)), _.msg)
 		case e: IrcActionEvent =>   handleEvent(HookEvt(e, Some(e.action.decoded)), _.act)
 		case e: IrcJoinEvent =>     handleEvent(HookEvt(e, None), _.join)
 		case e: IrcPartEvent =>     handleEvent(HookEvt(e, None), _.part)
