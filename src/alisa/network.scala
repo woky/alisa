@@ -1,17 +1,17 @@
 package alisa
 
-import org.jibble.pircbot.{Colors, IrcException, PircBot}
+import org.jibble.pircbot.{User, Colors, IrcException, PircBot}
 import java.io.IOException
 import java.util.regex.Pattern
-import scala.Some
-import java.util.concurrent.{Executors, ExecutorService, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, Executors, ExecutorService, TimeUnit}
 import java.nio.charset.Charset
 import java.nio.CharBuffer
 import com.ibm.icu.text.CharsetDetector
 import java.nio.charset.spi.CharsetProvider
-import scala.collection.JavaConversions._
 import alisa.util.{Misc, Logger, ByteBufferInputStream}
 import IrcEventHandlers._
+import scala.collection.JavaConversions._
+import java.util.HashMap
 
 object AlisaNetworkCommon {
 
@@ -30,6 +30,15 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 
 	private var destroy = false
 	private var executor: ExecutorService = _
+
+	/*
+	 * PircBot event methods (on*) run all in one thread. Only event handlers
+	 * may access this map concurrently.
+	 */
+	private val chanUserModes = new HashMap[String, ConcurrentHashMap[String, Set[Char]]](
+		networkConf.channels.length, 1f)
+	for (c <- networkConf.channels)
+		chanUserModes.put(c.name, new ConcurrentHashMap)
 
 	setName(networkConf.nick)
 	setLogin(getName)
@@ -63,23 +72,62 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		handleEventAsync(event)
 	}
 
-
 	override def onPrivateMessage(sender: String, login: String, hostname: String, rawMessage: String) {
 		val message = mkIrcText(rawMessage)
 		val event = IrcPrivMsgEvent(network, IrcUser(sender, login, hostname), message)
 		handleEventAsync(event)
 	}
 
-
 	override def onJoin(channel: String, sender: String, login: String, hostname: String) {
+		assert(chanUserModes(channel).putIfAbsent(sender, Set.empty) == null)
 		val event = IrcJoinEvent(network, channel, IrcUser(sender, login, hostname))
 		handleEventAsync(event)
 	}
 
-
 	override def onPart(channel: String, sender: String, login: String, hostname: String) {
+		assert(chanUserModes(channel).remove(sender) != null)
 		val event = IrcPartEvent(network, channel, IrcUser(sender, login, hostname))
 		handleEventAsync(event)
+	}
+
+	override def onVoice(channel: String, nick: String, login: String, hostname: String, recipient: String) {
+		val oldModes = chanUserModes(channel).get(nick)
+		assert(chanUserModes(channel).replace(nick, oldModes, oldModes + '+'))
+	}
+
+	override def onDeVoice(channel: String, nick: String, login: String, hostname: String, recipient: String) {
+		val oldModes = chanUserModes(channel).get(nick)
+		assert(chanUserModes(channel).replace(nick, oldModes, oldModes - '+'))
+	}
+
+	override def onOp(channel: String, nick: String, login: String, hostname: String, recipient: String) {
+		val oldModes = chanUserModes(channel).get(nick)
+		assert(chanUserModes(channel).replace(nick, oldModes, oldModes + '@'))
+	}
+
+	override def onDeop(channel: String, nick: String, login: String, hostname: String, recipient: String) {
+		val oldModes = chanUserModes(channel).get(nick)
+		assert(chanUserModes(channel).replace(nick, oldModes, oldModes - '@'))
+	}
+
+	override def onUserList(channel: String, users: Array[User]) {
+		val chanMap = chanUserModes(channel)
+		for (u <- users)
+			chanMap.put(u.getNick, u.getPrefix match {
+				case "" => Set.empty
+				case s => s.toSet
+			})
+	}
+
+	def userModes(channel: String, nick: String): Option[Set[Char]] = {
+		chanUserModes.get(channel) match {
+			case null => None
+			case chanMap =>
+				chanMap.get(nick) match {
+					case null => None
+					case c => Some(c)
+				}
+		}
 	}
 
 	def parseCommand(message: String) = {
