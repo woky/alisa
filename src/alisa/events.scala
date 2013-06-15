@@ -9,7 +9,7 @@ trait IrcEvent {
 	def network: IrcNetwork
 }
 
-trait IrcChannelEvent extends IrcEvent {
+trait IrcChannelEvent { this: IrcEvent =>
 
 	def channel: String
 }
@@ -21,18 +21,22 @@ case class IrcText(text: String, decoded: String)
 case class IrcMessageEvent(network: IrcNetwork,
                            channel: String,
 						   user: IrcUser,
-                           message: IrcText) extends IrcChannelEvent
+                           message: IrcText)
+		extends IrcEvent with IrcChannelEvent
 
 case class IrcCommandEvent(network: IrcNetwork,
                            channel: String,
 						   user: IrcUser,
                            command: String,
-                           args: IrcText) extends IrcChannelEvent
+                           args: IrcText)
+		extends IrcEvent with IrcChannelEvent
 
 case class IrcActionEvent(network: IrcNetwork,
 						  user: IrcUser,
                           target: String,
-                          action: IrcText) extends IrcChannelEvent {
+                          action: IrcText)
+		extends IrcEvent with IrcChannelEvent {
+
 	def channel = target
 }
 
@@ -42,8 +46,11 @@ case class IrcPrivMsgEvent(network: IrcNetwork,
 
 case class IrcJoinEvent(network: IrcNetwork,
                         channel: String,
-                        user: IrcUser) extends IrcChannelEvent
+                        user: IrcUser)
+		extends IrcEvent with IrcChannelEvent
+
 
 case class IrcPartEvent(network: IrcNetwork,
                         channel: String,
-                        user: IrcUser) extends IrcChannelEvent
+                        user: IrcUser)
+		extends IrcEvent with IrcChannelEvent
