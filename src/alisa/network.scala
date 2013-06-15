@@ -93,22 +93,22 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 
 	protected override def onVoice(channel: String, nick: String, login: String, hostname: String, recipient: String) {
 		val oldModes = chanUserModes(channel).get(nick)
-		assert(chanUserModes(channel).replace(nick, oldModes, oldModes + '+'))
+		assert(chanUserModes(channel).replace(nick, oldModes, oldModes + 'v'))
 	}
 
 	protected override def onDeVoice(channel: String, nick: String, login: String, hostname: String, recipient: String) {
 		val oldModes = chanUserModes(channel).get(nick)
-		assert(chanUserModes(channel).replace(nick, oldModes, oldModes - '+'))
+		assert(chanUserModes(channel).replace(nick, oldModes, oldModes - 'v'))
 	}
 
 	protected override def onOp(channel: String, nick: String, login: String, hostname: String, recipient: String) {
 		val oldModes = chanUserModes(channel).get(nick)
-		assert(chanUserModes(channel).replace(nick, oldModes, oldModes + '@'))
+		assert(chanUserModes(channel).replace(nick, oldModes, oldModes + 'o'))
 	}
 
 	protected override def onDeop(channel: String, nick: String, login: String, hostname: String, recipient: String) {
 		val oldModes = chanUserModes(channel).get(nick)
-		assert(chanUserModes(channel).replace(nick, oldModes, oldModes - '@'))
+		assert(chanUserModes(channel).replace(nick, oldModes, oldModes - 'o'))
 	}
 
 	protected override def onUserList(channel: String, users: Array[User]) {
