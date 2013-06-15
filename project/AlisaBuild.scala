@@ -49,7 +49,9 @@ object AlisaBuild extends Build {
 			javaSource in Test <<= baseDirectory / "test/src",
 			resourceDirectory in Test <<= baseDirectory / "test/resources",
 
+			resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
 			libraryDependencies ++= deps,
+
 			exportJars := true,
 			mainClass in(Compile, packageBin) := Some("alisa.Alisa")
 		) ++ OneJar.oneJarSettings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings
