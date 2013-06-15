@@ -9,6 +9,8 @@ case class IrcUser(nick: String, login: String, hostname: String)
 trait IrcEvent {
 
 	def network: IrcNetwork
+
+	//def time: Long // TODO
 }
 
 trait IrcChannelEvent { this: IrcEvent =>
