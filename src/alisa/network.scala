@@ -113,7 +113,13 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	}
 
 	override def onDisconnect {
-		networkReconnect
+		synchronized {
+			// XXX hotfix
+			if (!destroy) {
+				Thread.sleep(30000)
+				networkReconnect
+			}
+		}
 	}
 
 	def networkDisconnect {
@@ -129,33 +135,31 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	}
 
 	private def networkReconnect {
-		synchronized {
-			logDebug("Reconnecting")
+		logDebug("Reconnecting")
 
-			shutdownExecutor
-			executor = Executors.newSingleThreadExecutor
+		shutdownExecutor
+		executor = Executors.newSingleThreadExecutor
 
-			while (!destroy) {
-				for {
-					server <- networkConf.servers
-					_ <- 0 until server.reconnTries
-				} {
-					try {
-						logInfo("Connecting to " + server)
-						connect(server.host, server.port)
-						logInfo("Connected")
+		while (!destroy) {
+			for {
+				server <- networkConf.servers
+				_ <- 0 until server.reconnTries
+			} {
+				try {
+					logInfo("Connecting to " + server)
+					connect(server.host, server.port)
+					logInfo("Connected")
 
-						for (chan <- networkConf.channels)
-							joinChannel(chan.name)
+					for (chan <- networkConf.channels)
+						joinChannel(chan.name)
 
-						return
-					} catch {
-						case e@(_: IOException | _: IrcException) => {
-							logError("Could not connect to " + server, e)
-							AlisaNetwork.this.wait(server.reconnDelay)
-							if (destroy)
-								return
-						}
+					return
+				} catch {
+					case e@(_: IOException | _: IrcException) => {
+						logError("Could not connect to " + server, e)
+						AlisaNetwork.this.wait(server.reconnDelay)
+						if (destroy)
+							return
 					}
 				}
 			}
