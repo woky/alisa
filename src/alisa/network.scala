@@ -13,7 +13,7 @@ import scala.collection.JavaConversions._
 import alisa.util.{Misc, Logger, ByteBufferInputStream}
 import IrcEventHandlers._
 
-object AlisaNetworkCommon {
+object AlisaNetwork {
 
 	final val CHARSET_NAME = "pircbot_charset_hack"
 	final val INPUT_CHARSET = Charset.forName("ISO-8859-1")
@@ -23,7 +23,7 @@ object AlisaNetworkCommon {
 final class AlisaNetwork(networkConf: NetworkConfig,
                          handlerMap: HandlerMap) extends PircBot with Logger {
 
-	import AlisaNetworkCommon._
+	import AlisaNetwork._
 
 	val cmdRegex: Pattern = Pattern.compile(s"^${networkConf.nick}\\s*[:, ]\\s*(\\S+)(?:\\s+(.+))?\\s*$$")
 	val network = IrcNetwork(networkConf.name, this)
@@ -207,13 +207,13 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	}
 }
 
-object AlisaNetworkCharset extends Charset(AlisaNetworkCommon.CHARSET_NAME, Array()) {
+object AlisaNetworkCharset extends Charset(AlisaNetwork.CHARSET_NAME, Array()) {
 
 	def contains(cs: Charset) = false // XXX ?
 
-	def newDecoder = AlisaNetworkCommon.INPUT_CHARSET.newDecoder
+	def newDecoder = AlisaNetwork.INPUT_CHARSET.newDecoder
 
-	def newEncoder = AlisaNetworkCommon.OUTPUT_CHARSET.newEncoder
+	def newEncoder = AlisaNetwork.OUTPUT_CHARSET.newEncoder
 }
 
 final class AlisaNetworkCharsetProvider extends CharsetProvider {
@@ -221,7 +221,7 @@ final class AlisaNetworkCharsetProvider extends CharsetProvider {
 	val charsets: java.util.Iterator[Charset] = List(AlisaNetworkCharset).iterator
 
 	def charsetForName(charsetName: String) =
-		if (charsetName == AlisaNetworkCommon.CHARSET_NAME)
+		if (charsetName == AlisaNetwork.CHARSET_NAME)
 			AlisaNetworkCharset
 		else
 			null
