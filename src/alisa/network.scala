@@ -18,6 +18,8 @@ object AlisaNetwork {
 	final val CHARSET_NAME = "pircbot_charset_hack"
 	final val INPUT_CHARSET = Charset.forName("ISO-8859-1")
 	final val OUTPUT_CHARSET = Charset.forName("utf-8")
+	final val CMD_PREFIXES = List(".", ";", "`")
+	final val HL_DELIMS = List(':', ',')
 }
 
 final class AlisaNetwork(networkConf: NetworkConfig,
@@ -25,7 +27,6 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 
 	import AlisaNetwork._
 
-	val cmdRegex: Pattern = Pattern.compile(s"^${networkConf.nick}\\s*[:, ]\\s*(\\S+)(?:\\s+(.+))?\\s*$$")
 	val network = IrcNetwork(networkConf.name, this)
 
 	private var destroy = false
@@ -70,17 +71,31 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		handleEventAsync(event)
 	}
 
-	def parseCommand(message: String) = {
-		val matcher = cmdRegex.matcher(message)
-		if (matcher.matches) {
-			val command = matcher.group(1)
-			val args = matcher.group(2) match {
-				case s: String => s
-				case _ => "" // null
+	def parseCommand(msg: String): Option[(String, String)] = {
+		def mkArgs(line: String) = {
+			val (cmd :: argList) = Misc.mkArgs(line, None, 2, Misc.WS_SPLIT_REGEX)
+			val args = argList match {
+				case s :: Nil => s
+				case _ => ""
 			}
-			Some((command, args))
-		} else {
-			None
+			Some(cmd, args)
+		}
+
+		def prefixed(p: String) = (msg.startsWith(p) && (msg.length > p.length
+				&& !Character.isWhitespace(msg(p.length))))
+		CMD_PREFIXES.find(prefixed) match {
+			case Some(prefix) => mkArgs(msg.substring(prefix.length))
+			case _ =>
+				def hlDelim(c: Char) = Character.isWhitespace(c) || HL_DELIMS.contains(c)
+				val n = getNick
+				if (msg.startsWith(n) && msg.length > n.length && hlDelim(msg(n.length))) {
+					msg.indexWhere(!Character.isWhitespace(_), n.length + 1) match {
+						case -1 => None
+						case start => mkArgs(msg.substring(start))
+					}
+				} else {
+					None
+				}
 		}
 	}
 
