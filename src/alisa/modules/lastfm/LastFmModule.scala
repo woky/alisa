@@ -1,6 +1,6 @@
 package alisa.modules.lastfm
 
-import alisa.{SimpleCommandHandler2, Module}
+import alisa.{SimpleCommandHandler2, Module, IrcCommandEvent}
 import alisa.util.Misc._
 import java.util.concurrent.ConcurrentHashMap
 import de.umass.lastfm.{Caller, Track, User}
@@ -10,7 +10,6 @@ import resource._
 import java.io._
 import java.nio.file.{NoSuchFileException, Paths, Files}
 import scala.Some
-import alisa.IrcCommandEvent
 
 private object LastFmModule {
 
@@ -23,7 +22,11 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 	if (noLfmCache)
 		Caller.getInstance.setCache(null)
 
-	private type UserMap = ConcurrentHashMap[String, String]
+	private type ChanKey = (String, String)
+
+	private def chanKey(event: IrcCommandEvent) = (event.network.name, event.user.nick)
+
+	private type UserMap = ConcurrentHashMap[ChanKey, String]
 	private val userMap = loadUserMap
 
 	def handler = Some(this)
@@ -37,7 +40,7 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 					case "user" :: args =>
 						args match {
 							case user :: Nil =>
-								userMap.put(event.user.nick, user)
+								userMap.put(chanKey(event), user)
 								saveUserMap
 							case Nil =>
 								userMap.remove(event.user.nick)
@@ -63,7 +66,7 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 			case _ => 1
 		}
 
-		val results = getTrack(event.user.nick, idx)
+		val results = getTrack(chanKey(event), idx)
 		if (results.isEmpty)
 			return
 
@@ -88,7 +91,7 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 	}
 
 	private def sendNowPlaying(event: IrcCommandEvent) {
-		val results = getTrack(event.user.nick, 1)
+		val results = getTrack(chanKey(event), 1)
 		if (results.isEmpty)
 			return
 
@@ -115,8 +118,8 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 		}
 	}
 
-	private def getTrack(nick: String, pos: Int) =
-		User.getRecentTracks(userMap.getOrElse(nick, nick), pos, 1, apiKey)
+	private def getTrack(key: ChanKey, pos: Int) =
+		User.getRecentTracks(userMap.getOrElse(key, key._2), pos, 1, apiKey)
 
 	private def loadUserMap = {
 		try {
