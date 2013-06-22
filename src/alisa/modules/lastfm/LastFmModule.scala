@@ -3,7 +3,7 @@ package alisa.modules.lastfm
 import alisa.{SimpleCommandHandler2, Module}
 import alisa.util.Misc._
 import java.util.concurrent.ConcurrentHashMap
-import de.umass.lastfm.{Track, User}
+import de.umass.lastfm.{Caller, Track, User}
 import alisa.util.{MircColors => MC, Logger}
 import scala.collection.JavaConversions._
 import resource._
@@ -17,7 +17,11 @@ private object LastFmModule {
 	final val USER_MAP_FILE = "lastfm-usermap"
 }
 
-final class LastFmModule(apiKey: String) extends Module with SimpleCommandHandler2 with Logger {
+final class LastFmModule(apiKey: String, noLfmCache: Boolean)
+		extends Module with SimpleCommandHandler2 with Logger {
+
+	if (noLfmCache)
+		Caller.getInstance.setCache(null)
 
 	private type UserMap = ConcurrentHashMap[String, String]
 	private val userMap = loadUserMap
