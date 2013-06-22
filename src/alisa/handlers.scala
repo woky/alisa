@@ -33,3 +33,23 @@ abstract class SimpleCommandHandler(val command: String) extends IrcEventHandler
 
 	def handleCommand(event: IrcCommandEvent)
 }
+
+trait SimpleCommandHandler2 extends IrcEventHandler {
+
+	final def handles = Set(classOf[IrcCommandEvent])
+
+	final def handle = {
+		case e: IrcCommandEvent => {
+			if (handles(e.command)) {
+				handleCommand(e)
+				false
+			} else {
+				true
+			}
+		}
+	}
+
+	def handles(cmd: String): Boolean
+
+	def handleCommand(event: IrcCommandEvent)
+}
