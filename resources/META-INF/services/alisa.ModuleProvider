@@ -3,3 +3,4 @@ alisa.modules.hugs.Hugs
 alisa.modules.log.LogProvider
 alisa.modules.UrlInfoProvider
 alisa.modules.UnknownCmd
+alisa.modules.lastfm.LastFmProvider
