@@ -38,7 +38,7 @@ final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: I
 
 	override def handler = Some(this)
 
-	def handles = Set(classOf[IrcMessageEvent], classOf[IrcCommandEvent], classOf[IrcActionEvent])
+	def handles = Set(classOf[IrcMessageEvent], classOf[IrcCommandEvent])
 
 	private val cmdHandler = new CmdHandler(allowedIds, lucene, httpAddr)
 
