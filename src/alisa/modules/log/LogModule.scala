@@ -8,7 +8,7 @@ import alisa.util.Logger
 final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: Int)
 		extends Module with IrcEventHandler with Logger {
 
-	private val allowedIds = new AllowedIds(idTtl)
+	private val allowedIds = new AllowedIds(idTtl, 16)
 
 	private val lucene = new LuceneService(indexDir)
 
