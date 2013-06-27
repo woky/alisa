@@ -37,8 +37,7 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 	}
 
 	def link(network: String, channel: String, sender: String, bot: PircBot, query: String) {
-		val id = Random.alphanumeric.take(16).mkString
-		allowedIds(id) = LuceneChannel(network, channel)
+		val id = allowedIds.add(LuceneChannel(network, channel))
 
 		val encQry = URLEncoder.encode(query, "utf-8")
 		val link = s"$baseUrl$id?$QUERY_KEY=$encQry&$LIMIT_KEY=$DEF_LIMIT"
