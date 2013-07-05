@@ -18,7 +18,8 @@ object AlisaNetwork {
 	final val CHARSET_NAME = "pircbot_charset_hack"
 	final val INPUT_CHARSET = Charset.forName("ISO-8859-1")
 	final val OUTPUT_CHARSET = Charset.forName("utf-8")
-	final val CMD_PREFIXES = List(".", ";", "`")
+	// TODO revert back when reply-mod is done
+	final val CMD_PREFIXES = List.empty[String] //List(".", ";", "`")
 	final val HL_DELIMS = List(':', ',')
 }
 
