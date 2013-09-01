@@ -136,7 +136,6 @@ object Alisa extends Logger {
 		val level = if (debug) Level.FINEST else Level.INFO
 		root.setLevel(level)
 		root.addHandler(new ConsoleHandler {
-			setOutputStream(System.out)
 			setLevel(level)
 		})
 	}
