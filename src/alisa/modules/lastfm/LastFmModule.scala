@@ -24,7 +24,7 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 
 	private type ChanKey = (String, String)
 
-	private def chanKey(event: IrcCommandEvent) = (event.network.name, event.user.nick)
+	private def chanKey(event: IrcCommandEvent) = (event.network.name, event.user.user.nick)
 
 	private type UserMap = ConcurrentHashMap[ChanKey, String]
 	private val userMap = loadUserMap
@@ -43,7 +43,7 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 								userMap.put(chanKey(event), user)
 								saveUserMap
 							case Nil =>
-								userMap.remove(event.user.nick)
+								userMap.remove(event.user.user.nick)
 								saveUserMap
 							case _ =>
 						}
@@ -83,7 +83,7 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 
 	private def sendLastPlayed(event: IrcCommandEvent, track: Track) {
 		val msg = new StringBuilder(64)
-		msg ++= event.user.nick += ' ' += MC.BOLD ++= MC(MC.LIGHT_BLUE)
+		msg ++= event.user.user.nick += ' ' += MC.BOLD ++= MC(MC.LIGHT_BLUE)
 		msg ++= "lp"
 		msg += MC.CLEAR += ' '
 		appendTrack(msg, track)
@@ -103,7 +103,7 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 		}
 
 		val msg = new StringBuilder(64)
-		msg ++= event.user.nick += ' ' += MC.BOLD ++= MC(MC.RED)
+		msg ++= event.user.user.nick += ' ' += MC.BOLD ++= MC(MC.RED)
 		msg ++= "np"
 		msg += MC.CLEAR += ' '
 		appendTrack(msg, results.iterator.next)
