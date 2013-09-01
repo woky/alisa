@@ -80,7 +80,9 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 					cu match {
 						case null =>
 							val chanUser = IrcChannelUser(user, Set.empty)
-							userMap(nick) = UserObjects(user, Map(channel -> chanUser))
+							val chanUserMap = new JHashMap[String, IrcChannelUser](1)
+							chanUserMap.put(channel, chanUser)
+							userMap(nick) = UserObjects(user, chanUserMap)
 							chanUser
 						case UserChanModes(modes) =>
 							val chanUsers = modes.map {
@@ -228,9 +230,9 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 
 	override def onUserList(channel: String, users: Array[User]) {
 		for (u <- users) {
-			val nick = u.getNick
-			val modes = prefixesToModes(u.getPrefix, channel, nick)
-			changeUserChanModes(channel, nick, _ => modes)
+				val nick = u.getNick
+				val modes = prefixesToModes(u.getPrefix, channel, nick)
+				changeUserChanModes(channel, nick, _ => modes)
 		}
 	}
 
