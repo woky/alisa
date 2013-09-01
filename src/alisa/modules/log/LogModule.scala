@@ -48,9 +48,9 @@ final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: I
 			lucene.addMessage(LuceneMessage(
 				LuceneChannel(msg.network.name, msg.channel),
 				System.currentTimeMillis,
-				msg.user.nick,
-				msg.user.login,
-				msg.user.hostname,
+				msg.user.user.nick,
+				msg.user.user.login,
+				msg.user.user.hostname,
 				msg.message.decoded /* TODO store original text */))
 			true
 		}

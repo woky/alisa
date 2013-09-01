@@ -1,17 +1,17 @@
 package alisa
 
-import org.jibble.pircbot.{Colors, IrcException, PircBot}
+import org.jibble.pircbot.{User, Colors, IrcException, PircBot}
 import java.io.IOException
 import java.util.regex.Pattern
-import scala.Some
 import java.util.concurrent.{Executors, ExecutorService, TimeUnit}
 import java.nio.charset.Charset
 import java.nio.CharBuffer
 import com.ibm.icu.text.CharsetDetector
 import java.nio.charset.spi.CharsetProvider
-import scala.collection.JavaConversions._
 import alisa.util.{Misc, Logger, ByteBufferInputStream}
 import IrcEventHandlers._
+import scala.collection.JavaConversions._
+import java.util.{Map => JMap, HashMap => JHashMap}
 
 object AlisaNetworkCommon {
 
@@ -31,6 +31,11 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	private var destroy = false
 	private var executor: ExecutorService = _
 
+	private trait CachedUser
+	private case class UserChanModes(modes: JMap[String, Set[Char]]) extends CachedUser
+	private case class UserObjects(user: IrcUser, chanUsers: JMap[String, IrcChannelUser]) extends CachedUser
+	private val userMap = new JHashMap[String, CachedUser]()
+
 	setName(networkConf.nick)
 	setLogin(getName)
 	setFinger(networkConf.finger)
@@ -42,44 +47,189 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	else
 		networkReconnect
 
+
+	private def changeUserChanModes(channel: String, nick: String,
+	                                change: (Set[Char]) => Set[Char]) {
+		userMap.get(nick) match {
+			case null =>
+				userMap(nick) = UserChanModes(Map(channel -> change(Set.empty)))
+			case UserChanModes(modes) =>
+				modes(channel) = change(modes.getOrElse(channel, Set.empty))
+			case UserObjects(user, chanUsers) =>
+				val oldModes = Option(chanUsers.get(channel)).map(_.modes).getOrElse(Set.empty)
+				chanUsers(channel) = IrcChannelUser(user, change(oldModes))
+		}
+	}
+
+	private def addUserChanMode(channel: String, nick: String, mode: Char) {
+		changeUserChanModes(channel, nick, _ + mode)
+	}
+
+	private def delUserChanMode(channel: String, nick: String, mode: Char) {
+		changeUserChanModes(channel, nick, _ - mode)
+	}
+
+	private def getChanUser(channel: String, nick: String, login: String,
+	                        hostname: String): IrcChannelUser =
+		userMap.get(nick) match {
+			case cu@(null | UserChanModes(_)) =>
+				val user = IrcUser(nick, login, hostname)
+				val chanUser =
+					cu match {
+						case null =>
+							val chanUser = IrcChannelUser(user, Set.empty)
+							userMap(nick) = UserObjects(user, Map(channel -> chanUser))
+							chanUser
+						case UserChanModes(modes) =>
+							val chanUsers = modes.map {
+								case (c, m) => c -> IrcChannelUser(user, m)
+							}
+							userMap(nick) = UserObjects(user, chanUsers)
+							chanUsers.getOrElseUpdate(channel, IrcChannelUser(user, Set.empty))
+					}
+				chanUser
+			case UserObjects(user, chanUsers) =>
+				chanUsers.get(channel) match {
+					case null =>
+						val newChanUser = new IrcChannelUser(user, Set.empty)
+						chanUsers(channel) = newChanUser
+						newChanUser
+					case chanUser => chanUser
+				}
+		}
+
+	private def getUser(nick: String, login: String, hostname: String) =
+		userMap.get(nick) match {
+			case tmpCu@(null | UserChanModes(_)) =>
+				val user = IrcUser(nick, login, hostname)
+				if (tmpCu != null) {
+					val UserChanModes(modes) = tmpCu
+					val chanUsers = modes.map {
+						case (c, m) => c -> IrcChannelUser(user, m)
+					}
+					userMap(nick) = UserObjects(user, chanUsers)
+				}
+				user
+			case UserObjects(user, _) => user
+		}
+
+	def prefixesToModes(prefixes: Iterable[Char], channel: String, nick: String): Set[Char] =
+		prefixes.map(
+			prefix => {
+				val optMode = IrcChannelUser.PREFIX_TO_MODE.get(prefix)
+				if (optMode.isEmpty)
+					logWarn(s"Invalid user prefix `$prefix' " +
+							s"(channel: $channel, nick: $nick})")
+				optMode
+			}
+		).filter(_.isDefined).map(_.get).toSet
+
 	override def onMessage(channel: String, sender: String, login: String, hostname: String, rawMessage: String) {
+		val chanUser = getChanUser(channel, sender, login, hostname)
 		parseCommand(rawMessage) match {
 			case Some((command, rawArgs)) => {
 				val args = mkIrcText(rawArgs)
-				val event = IrcCommandEvent(network, channel, IrcUser(sender, login, hostname), command, args)
+				val event = IrcCommandEvent(network, channel, chanUser, command, args)
 				handleEventAsync(event)
 			}
 			case None => {
 				val msg = mkIrcText(rawMessage)
-				val event = IrcMessageEvent(network, channel, IrcUser(sender, login, hostname), msg)
+				val event = IrcMessageEvent(network, channel, chanUser, msg)
 				handleEventAsync(event)
 			}
 		}
 	}
 
+	// TODO target should be only channel
 	override def onAction(sender: String, login: String, hostname: String, target: String, rawAction: String) {
 		val action = mkIrcText(rawAction)
-		val event = IrcActionEvent(network, IrcUser(sender, login, hostname), target, action)
+		val chanUser = getChanUser(target, sender, login, hostname)
+		val event = IrcActionEvent(network, chanUser, target, action)
 		handleEventAsync(event)
 	}
-
 
 	override def onPrivateMessage(sender: String, login: String, hostname: String, rawMessage: String) {
 		val message = mkIrcText(rawMessage)
-		val event = IrcPrivMsgEvent(network, IrcUser(sender, login, hostname), message)
+		val event = IrcPrivMsgEvent(network, getUser(sender, login, hostname), message)
 		handleEventAsync(event)
 	}
 
-
-	override def onJoin(channel: String, sender: String, login: String, hostname: String) {
-		val event = IrcJoinEvent(network, channel, IrcUser(sender, login, hostname))
+	override def onJoin(channel: String, nick: String, login: String, hostname: String) {
+		val chanUser = getChanUser(channel, nick, login, hostname)
+		val event = IrcJoinEvent(network, channel, chanUser)
 		handleEventAsync(event)
 	}
 
+	override def onPart(channel: String, nick: String, login: String, hostname: String) {
+		val chanUser =
+			userMap.get(nick) match {
+				case cu@(null | UserChanModes(_)) =>
+					val user = IrcUser(nick, login, hostname)
+					val chanModes =
+						cu match {
+							case null => Set.empty[Char]
+							case UserChanModes(modes) =>
+								val chanModes = modes.remove(channel)
+								if (modes.isEmpty)
+									userMap.remove(nick)
+								if (chanModes == null) {
+									logWarn(s"Unknown user `$nick' parted `$channel'")
+									Set.empty[Char]
+								} else {
+									chanModes
+								}
+						}
+					IrcChannelUser(user, chanModes)
+				case UserObjects(user, chanUsers) =>
+					val chanUser = chanUsers.remove(nick)
+					if (chanUsers.isEmpty)
+						userMap.remove(nick)
+					if (chanUser == null) {
+						logWarn(s"Unknown user `$nick' parted `$channel'")
+						IrcChannelUser(user, Set.empty)
+					} else {
+						chanUser
+					}
+			}
 
-	override def onPart(channel: String, sender: String, login: String, hostname: String) {
-		val event = IrcPartEvent(network, channel, IrcUser(sender, login, hostname))
+		val event = IrcPartEvent(network, channel, chanUser)
 		handleEventAsync(event)
+	}
+
+	override def onQuit(nick: String, login: String, hostname: String, reason: String) {
+		val user =
+			userMap.remove(nick) match {
+				case UserObjects(user, _) => user
+				case _ => IrcUser(nick, login, hostname)
+			}
+
+		// TODO
+		//val event = IrcQuitEvent(network, user, reason)
+		//handleEventAsync(event)
+	}
+
+	override def onVoice(channel: String, nick: String, login: String, hostname: String, recipient: String) {
+		addUserChanMode(channel, recipient, 'v')
+	}
+
+	override def onDeVoice(channel: String, nick: String, login: String, hostname: String, recipient: String) {
+		delUserChanMode(channel, recipient, 'v')
+	}
+
+	override def onOp(channel: String, nick: String, login: String, hostname: String, recipient: String) {
+		addUserChanMode(channel, recipient, 'o')
+	}
+
+	override def onDeop(channel: String, nick: String, login: String, hostname: String, recipient: String) {
+		delUserChanMode(channel, recipient, 'o')
+	}
+
+	override def onUserList(channel: String, users: Array[User]) {
+		for (u <- users) {
+			val nick = u.getNick
+			val modes = prefixesToModes(u.getPrefix, channel, nick)
+			changeUserChanModes(channel, nick, _ => modes)
+		}
 	}
 
 	def parseCommand(message: String) = {

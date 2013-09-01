@@ -11,7 +11,7 @@ object ActionHandler extends IrcEventHandler {
 	def handleAction(event: IrcActionEvent) = {
 		val bot = event.network.bot
 		val channel = event.target
-		val sender = event.user.nick
+		val sender = event.user.user.nick
 
 		val actParts = mkArgs(event.action.decoded, limit = 2, regex = WS_SPLIT_REGEX)
 		actParts match {

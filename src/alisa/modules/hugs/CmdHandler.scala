@@ -12,7 +12,7 @@ object CmdHandler extends SimpleCommandHandler("hug") {
 	def handleCommand(event: IrcCommandEvent) {
 		val bot = event.network.bot
 		val channel = event.channel
-		val sender = event.user.nick
+		val sender = event.user.user.nick
 
 		val targets = mkArgs(event.args.decoded, Some(sender))
 		val presentNicks = bot.getUsers(channel).map(_.getNick).toSet
