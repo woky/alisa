@@ -185,7 +185,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 						}
 					IrcChannelUser(user, chanModes)
 				case UserObjects(user, chanUsers) =>
-					val chanUser = chanUsers.remove(nick)
+					val chanUser = chanUsers.remove(channel)
 					if (chanUsers.isEmpty)
 						userMap.remove(nick)
 					if (chanUser == null) {
