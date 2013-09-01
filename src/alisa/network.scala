@@ -34,8 +34,8 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	private var executor: ExecutorService = _
 
 	private trait CachedUser
-	private case class UserChanModes(modes: JMap[String, Set[Char]]) extends CachedUser
-	private case class UserObjects(user: IrcUser, chanUsers: JMap[String, IrcChannelUser]) extends CachedUser
+	private case class UserChanModes(chanModeMap: JMap[String, Set[Char]]) extends CachedUser
+	private case class UserObjects(user: IrcUser, chanUserMap: JMap[String, IrcChannelUser]) extends CachedUser
 	private val userMap = new JHashMap[String, CachedUser]()
 
 	setName(networkConf.nick)
@@ -55,11 +55,11 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		userMap.get(nick) match {
 			case null =>
 				userMap(nick) = UserChanModes(Map(channel -> change(Set.empty)))
-			case UserChanModes(modes) =>
-				modes(channel) = change(modes.getOrElse(channel, Set.empty))
-			case UserObjects(user, chanUsers) =>
-				val oldModes = Option(chanUsers.get(channel)).map(_.modes).getOrElse(Set.empty)
-				chanUsers(channel) = IrcChannelUser(user, change(oldModes))
+			case UserChanModes(chanModeMap) =>
+				chanModeMap(channel) = change(chanModeMap.getOrElse(channel, Set.empty))
+			case UserObjects(user, chanUserMap) =>
+				val oldModes = Option(chanUserMap.get(channel)).map(_.modes).getOrElse(Set.empty)
+				chanUserMap(channel) = IrcChannelUser(user, change(oldModes))
 		}
 	}
 
@@ -84,19 +84,19 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 							chanUserMap.put(channel, chanUser)
 							userMap(nick) = UserObjects(user, chanUserMap)
 							chanUser
-						case UserChanModes(modes) =>
-							val chanUsers = modes.map {
+						case UserChanModes(chanModeMap) =>
+							val chanUserMap = chanModeMap.map {
 								case (c, m) => c -> IrcChannelUser(user, m)
 							}
-							userMap(nick) = UserObjects(user, chanUsers)
-							chanUsers.getOrElseUpdate(channel, IrcChannelUser(user, Set.empty))
+							userMap(nick) = UserObjects(user, chanUserMap)
+							chanUserMap.getOrElseUpdate(channel, IrcChannelUser(user, Set.empty))
 					}
 				chanUser
-			case UserObjects(user, chanUsers) =>
-				chanUsers.get(channel) match {
+			case UserObjects(user, chanUserMap) =>
+				chanUserMap.get(channel) match {
 					case null =>
 						val newChanUser = new IrcChannelUser(user, Set.empty)
-						chanUsers(channel) = newChanUser
+						chanUserMap(channel) = newChanUser
 						newChanUser
 					case chanUser => chanUser
 				}
@@ -107,11 +107,11 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 			case tmpCu@(null | UserChanModes(_)) =>
 				val user = IrcUser(nick, login, hostname)
 				if (tmpCu != null) {
-					val UserChanModes(modes) = tmpCu
-					val chanUsers = modes.map {
+					val UserChanModes(chanModeMap) = tmpCu
+					val chanUserMap = chanModeMap.map {
 						case (c, m) => c -> IrcChannelUser(user, m)
 					}
-					userMap(nick) = UserObjects(user, chanUsers)
+					userMap(nick) = UserObjects(user, chanUserMap)
 				}
 				user
 			case UserObjects(user, _) => user
@@ -172,9 +172,9 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 					val chanModes =
 						cu match {
 							case null => Set.empty[Char]
-							case UserChanModes(modes) =>
-								val chanModes = modes.remove(channel)
-								if (modes.isEmpty)
+							case UserChanModes(chanModeMap) =>
+								val chanModes = chanModeMap.remove(channel)
+								if (chanModeMap.isEmpty)
 									userMap.remove(nick)
 								if (chanModes == null) {
 									logWarn(s"Unknown user `$nick' parted `$channel'")
@@ -184,9 +184,9 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 								}
 						}
 					IrcChannelUser(user, chanModes)
-				case UserObjects(user, chanUsers) =>
-					val chanUser = chanUsers.remove(channel)
-					if (chanUsers.isEmpty)
+				case UserObjects(user, chanUserMap) =>
+					val chanUser = chanUserMap.remove(channel)
+					if (chanUserMap.isEmpty)
 						userMap.remove(nick)
 					if (chanUser == null) {
 						logWarn(s"Unknown user `$nick' parted `$channel'")
@@ -231,8 +231,8 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	override def onUserList(channel: String, users: Array[User]) {
 		for (u <- users) {
 				val nick = u.getNick
-				val modes = prefixesToModes(u.getPrefix, channel, nick)
-				changeUserChanModes(channel, nick, _ => modes)
+				val chanModes = prefixesToModes(u.getPrefix, channel, nick)
+				changeUserChanModes(channel, nick, _ => chanModes)
 		}
 	}
 
