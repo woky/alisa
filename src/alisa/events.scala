@@ -54,7 +54,7 @@ trait IrcUserEvent extends IrcEvent {
 	def user: IrcUser
 }
 
-trait IrcChannelUserEvent extends IrcEvent {
+trait IrcChannelUserEvent extends IrcEvent with IrcChannelEvent {
 
 	def user: IrcChannelUser
 }
