@@ -303,7 +303,7 @@ object UrlInfoCommon extends Logger {
 							val extractor = new UrlInfoTitleExtractor(buf)
 							val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
 							parser.setContentHandler(extractor)
-							parser.setStreamabilityViolationPolicy(XmlViolationPolicy.FATAL)
+							//parser.setStreamabilityViolationPolicy(XmlViolationPolicy.FATAL)
 
 							val limInput = new LimitedInputStream(httpConn.getInputStream, config.dlLimit)
 							val xmlSource =
