@@ -1,3 +1,9 @@
+/*
+ * TODO
+ * find out why last.fm API sometimes sends last played track twice and
+ * eliminate duplicate code
+ */
+
 package alisa.modules.lastfm
 
 import alisa.{SimpleCommandHandler2, Module, IrcCommandEvent}
@@ -66,7 +72,8 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 			case _ => 1
 		}
 
-		val results = getTrack(chanKey(event), idx)
+		val lfmUser = userMap.getOrElse(chanKey(event), event.user.user.nick)
+		val results = getTrack(lfmUser, idx)
 		if (results.isEmpty)
 			return
 
@@ -78,12 +85,13 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 			else
 				npOrLp
 
-		sendLastPlayed(event, lp)
+		sendLastPlayed(event, lp, lfmUser)
 	}
 
-	private def sendLastPlayed(event: IrcCommandEvent, track: Track) {
+	private def sendLastPlayed(event: IrcCommandEvent, track: Track, lfmUser: String) {
 		val msg = new StringBuilder(64)
-		msg ++= event.user.user.nick += ' ' += MC.BOLD ++= MC(MC.LIGHT_BLUE)
+		appendUser(msg, event.user.user.nick, lfmUser)
+		msg += ' ' += MC.BOLD ++= MC(MC.LIGHT_BLUE)
 		msg ++= "lp"
 		msg += MC.CLEAR += ' '
 		appendTrack(msg, track)
@@ -91,23 +99,31 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 	}
 
 	private def sendNowPlaying(event: IrcCommandEvent) {
-		val results = getTrack(chanKey(event), 1)
+		val lfmUser = userMap.getOrElse(chanKey(event), event.user.user.nick)
+		val results = getTrack(lfmUser, 1)
 		if (results.isEmpty)
 			return
 
 		val iter = results.iterator
 		val track = iter.next
 		if (!iter.hasNext) {
-			sendLastPlayed(event, track)
+			sendLastPlayed(event, track, lfmUser)
 			return
 		}
 
 		val msg = new StringBuilder(64)
-		msg ++= event.user.user.nick += ' ' += MC.BOLD ++= MC(MC.RED)
+		appendUser(msg, event.user.user.nick, lfmUser)
+		msg += ' ' += MC.BOLD ++= MC(MC.RED)
 		msg ++= "np"
 		msg += MC.CLEAR += ' '
 		appendTrack(msg, results.iterator.next)
 		event.network.bot.sendAction(event.channel, msg.toString)
+	}
+
+	private def appendUser(sb: StringBuilder, ircUser: String, lfmUser: String) {
+		sb ++= ircUser
+		if (!ircUser.equals(lfmUser))
+			sb ++= " (" ++= lfmUser += ')'
 	}
 
 	private def appendTrack(sb: StringBuilder, track: Track) {
@@ -118,8 +134,8 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 		}
 	}
 
-	private def getTrack(key: ChanKey, pos: Int) =
-		User.getRecentTracks(userMap.getOrElse(key, key._2), pos, 1, apiKey)
+	private def getTrack(lfmUser: String, pos: Int) =
+		User.getRecentTracks(lfmUser, pos, 1, apiKey)
 
 	private def loadUserMap = {
 		try {
