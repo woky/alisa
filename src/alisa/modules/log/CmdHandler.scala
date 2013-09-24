@@ -29,7 +29,7 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 			args match {
 				case subcmd :: subargs => subcmd match {
 					case "link" => subargs match {
-						case query :: ignored => link(net, channel, sender, bot, query)
+						case query :: _ => link(net, channel, sender, bot, query)
 						case _ => link(net, channel, sender, bot, DEF_QUERY)
 					}
 					case "flush" => lucene.commit

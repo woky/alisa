@@ -54,7 +54,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		userMap.get(nick) match {
 			case null =>
 				val chanModeMap = new JHashMap[String, Set[Char]]
-				chanModeMap.put(channel, change(Set.empty))
+				chanModeMap(channel) = change(Set.empty)
 				userMap(nick) = UserChanModes(chanModeMap)
 			case UserChanModes(chanModeMap) =>
 				chanModeMap(channel) = change(chanModeMap.getOrElse(channel, Set.empty))
