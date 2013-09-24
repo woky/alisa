@@ -2,7 +2,6 @@ package alisa.modules.log
 
 import alisa.{IrcChannelUser, IrcCommandEvent, SimpleCommandHandler}
 import org.jibble.pircbot.PircBot
-import scala.util.Random
 import java.net.{InetSocketAddress, URLEncoder}
 import alisa.util.Misc._
 
@@ -21,19 +20,22 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 		val channel = event.channel
 		val sender = event.user.user.nick
 
+		def sendHelp() {
+			bot.sendMessage(channel, s"$sender, usage: $command { link [<query>] | flush }")
+		}
+
 		if (IrcChannelUser.isAtLeastPrefix('+', event.user.modes)) {
-			val args = mkArgs(event.args.decoded, Some(sender), 2)
+			val args = mkArgs(event.args.decoded)
 			args match {
 				case subcmd :: subargs => subcmd match {
 					case "link" => subargs match {
-						case query :: Nil => link(net, channel, sender, bot, query)
-						case Nil => link(net, channel, sender, bot, DEF_QUERY)
-						case _ => throw new AssertionError // shouldn't happen with split() with limit 2
+						case query :: ignored => link(net, channel, sender, bot, query)
+						case _ => link(net, channel, sender, bot, DEF_QUERY)
 					}
 					case "flush" => lucene.commit
+					case _ => sendHelp()
 				}
-				case Nil =>
-					bot.sendMessage(channel, s"$sender, usage: $command { link [<query>] | flush }")
+				case Nil => sendHelp()
 			}
 		} else {
 			bot.sendMessage(sender, s"You must have at least voice in $channel to use this command.")
