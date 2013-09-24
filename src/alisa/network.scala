@@ -2,7 +2,6 @@ package alisa
 
 import org.jibble.pircbot.{User, Colors, IrcException, PircBot}
 import java.io.IOException
-import java.util.regex.Pattern
 import java.util.concurrent.{Executors, ExecutorService, TimeUnit}
 import java.nio.charset.Charset
 import java.nio.CharBuffer
@@ -54,7 +53,9 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	                                change: (Set[Char]) => Set[Char]) {
 		userMap.get(nick) match {
 			case null =>
-				userMap(nick) = UserChanModes(Map(channel -> change(Set.empty)))
+				val chanModeMap = new JHashMap[String, Set[Char]]
+				chanModeMap.put(channel, change(Set.empty))
+				userMap(nick) = UserChanModes(chanModeMap)
 			case UserChanModes(chanModeMap) =>
 				chanModeMap(channel) = change(chanModeMap.getOrElse(channel, Set.empty))
 			case UserObjects(user, chanUserMap) =>
