@@ -15,6 +15,7 @@ import scala.collection.JavaConversions._
 import resource._
 import java.io._
 import java.nio.file.{NoSuchFileException, Paths, Files}
+import java.util.Collection
 
 private object LastFmModule {
 
@@ -132,15 +133,28 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 			sb ++= "on " ++= MC(MC.LIGHT_CYAN) ++= track.getAlbum += MC.CLEAR
 		}
 
-		val albumTagsIt = Album.getInfo(null, track.getAlbumMbid, apiKey).getTags.iterator
-		if (albumTagsIt.hasNext) {
+		def appendTags(tags: Collection[String]) {
+			val it = tags.iterator
 			sb ++= " ("
 			do {
-				sb ++= albumTagsIt.next
-				if (albumTagsIt.hasNext)
+				sb ++= it.next
+				if (it.hasNext)
 					sb.append(", ")
-			} while (albumTagsIt.hasNext)
+			} while (it.hasNext)
 			sb += ')'
+		}
+
+		if (!track.getTags.isEmpty) {
+			appendTags(track.getTags)
+		} else {
+			val album = Album.getInfo(null, track.getAlbumMbid, apiKey)
+			if (album != null && !album.getTags.isEmpty) {
+				appendTags(album.getTags)
+			} else {
+				val artist = Artist.getInfo(track.getArtistMbid, apiKey)
+				if (artist != null && !artist.getTags.isEmpty)
+					appendTags(artist.getTags)
+			}
 		}
 	}
 
