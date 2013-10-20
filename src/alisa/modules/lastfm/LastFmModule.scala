@@ -9,13 +9,12 @@ package alisa.modules.lastfm
 import alisa.{SimpleCommandHandler2, Module, IrcCommandEvent}
 import alisa.util.Misc._
 import java.util.concurrent.ConcurrentHashMap
-import de.umass.lastfm.{Caller, Track, User}
+import de.umass.lastfm._
 import alisa.util.{MircColors => MC, Logger}
 import scala.collection.JavaConversions._
 import resource._
 import java.io._
 import java.nio.file.{NoSuchFileException, Paths, Files}
-import scala.Some
 
 private object LastFmModule {
 
@@ -131,6 +130,17 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 		sb ++= "by " ++= MC(MC.PINK) ++= track.getArtist += MC.CLEAR += ' '
 		if (track.getAlbum != null && !track.getAlbum.isEmpty) {
 			sb ++= "on " ++= MC(MC.LIGHT_CYAN) ++= track.getAlbum += MC.CLEAR
+		}
+
+		val albumTagsIt = Album.getInfo(null, track.getAlbumMbid, apiKey).getTags.iterator
+		if (albumTagsIt.hasNext) {
+			sb ++= " ("
+			do {
+				sb ++= albumTagsIt.next
+				if (albumTagsIt.hasNext)
+					sb.append(", ")
+			} while (albumTagsIt.hasNext)
+			sb += ')'
 		}
 	}
 
