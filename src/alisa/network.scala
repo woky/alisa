@@ -23,7 +23,7 @@ object AlisaNetwork {
 }
 
 final class AlisaNetwork(networkConf: NetworkConfig,
-                         handlerMap: HandlerMap) extends PircBot with Logger {
+                         handlerMap: HandlerMap, verbose: Boolean) extends PircBot with Logger {
 
 	import AlisaNetwork._
 
@@ -42,6 +42,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	setFinger(networkConf.finger)
 	setVersion(getFinger)
 	setEncoding(CHARSET_NAME)
+	setVerbose(verbose)
 
 	if (networkConf.servers.isEmpty)
 		logWarn("No servers for network " + networkConf.name)

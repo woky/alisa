@@ -53,7 +53,7 @@ object Alisa extends Logger {
 
 		val nets = mods.flatMap(mods => {
 			val handlers = mkHandlerMap(mods.map(_.handler).filter(_.isDefined).map(_.get))
-			startNetworks(config.networks, handlers)
+			startNetworks(config.networks, handlers, verbose)
 		})
 
 		sys.addShutdownHook({
@@ -99,12 +99,13 @@ object Alisa extends Logger {
 			}
 	}
 
-	def startNetworks(configs: List[NetworkConfig], handlers: HandlerMap): Try[List[AlisaNetwork]] = {
+	def startNetworks(configs: List[NetworkConfig], handlers: HandlerMap,
+					  verbose: Boolean): Try[List[AlisaNetwork]] = {
 		def iter(remaining: List[NetworkConfig], networks: List[AlisaNetwork]): List[AlisaNetwork] = {
 			remaining match {
 				case conf :: xs =>
 					try {
-						iter(xs, new AlisaNetwork(conf, handlers) :: networks)
+						iter(xs, new AlisaNetwork(conf, handlers, verbose) :: networks)
 					} catch {
 						case e: Exception => {
 							stopNetworks(networks)
