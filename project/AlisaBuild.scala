@@ -15,7 +15,7 @@ object AlisaBuild extends Build {
 		mods.map(group % _ % version)
 
 	val nettyDeps = {
-		val v = "4.0.0.CR6"
+		val v = "4.0.10.Final"
 		val mods = Seq(
 			"common",
 			"buffer",

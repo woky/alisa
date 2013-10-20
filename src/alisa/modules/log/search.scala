@@ -11,7 +11,7 @@ import alisa.util.Logger
 import io.netty.buffer.Unpooled
 import io.netty.util.CharsetUtil._
 import scala.collection.JavaConversions._
-import io.netty.handler.stream.{ChunkedWriteHandler, ChunkedMessageInput}
+import io.netty.handler.stream.{ChunkedWriteHandler, ChunkedInput}
 import org.apache.lucene.queryparser.classic.ParseException
 import scala.Some
 import java.text.SimpleDateFormat
@@ -96,16 +96,11 @@ private object SearchHandler {
 }
 
 private final class SearchHandler(allowedIds: AllowedIds, lucene: LuceneService)
-		extends SimpleChannelInboundHandler[Object] with Logger {
+		extends SimpleChannelInboundHandler[HttpRequest] with Logger {
 
 	import SearchHandler._
 
-	def messageReceived(ctx: ChannelHandlerContext, msg: Object) {
-		if (!msg.isInstanceOf[HttpRequest]) {
-			logWarn("Unknown channel message: " + msg.getClass)
-			return
-		}
-
+	def channelRead0(ctx: ChannelHandlerContext, msg: HttpRequest) {
 		val req = msg.asInstanceOf[HttpRequest]
 		if (req.getMethod != HttpMethod.GET) {
 			sendError(ctx, UNAUTHORIZED)
@@ -142,12 +137,9 @@ private final class SearchHandler(allowedIds: AllowedIds, lucene: LuceneService)
 			resp.headers.set(CONTENT_TYPE, CT_TEXT)
 			resp.headers.set(TRANSFER_ENCODING, Values.CHUNKED)
 
-			val msgList = MessageList.newInstance[Object]
-			msgList.add(resp)
-			msgList.add(new SearchChunkedInput(results.iterator))
-			msgList.add(LastHttpContent.EMPTY_LAST_CONTENT)
-
-			ctx.write(msgList).addListener(ChannelFutureListener.CLOSE)
+			ctx.write(resp)
+			ctx.write(new SearchChunkedInput(results.iterator))
+			ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT).addListener(ChannelFutureListener.CLOSE)
 		} catch {
 			case e: ParseException => sendError(ctx, BAD_REQUEST, Some(e.getMessage))
 			case e: Exception => logError("lucene.search() failed", e)
@@ -169,7 +161,7 @@ private final class SearchHandler(allowedIds: AllowedIds, lucene: LuceneService)
 }
 
 private final class SearchChunkedInput(it: Iterator[LuceneStoredMessage])
-		extends ChunkedMessageInput[HttpContent] {
+		extends ChunkedInput[HttpContent] {
 
 	private val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm")
 
@@ -182,15 +174,13 @@ private final class SearchChunkedInput(it: Iterator[LuceneStoredMessage])
 		s"$time <${msg.stored.nick}> ${msg.stored.message}\n"
 	}
 
-	def readChunk(buffer: MessageList[HttpContent]) = {
+	def readChunk(ctx: ChannelHandlerContext) = {
 		if (it.hasNext) {
 			val msg = formatMsg(it.next)
 			val buf = Unpooled.copiedBuffer(msg, UTF_8)
-			val content = new DefaultHttpContent(buf)
-			buffer.add(content)
-			true
+			new DefaultHttpContent(buf)
 		} else {
-			false
+			null
 		}
 	}
 }
