@@ -65,6 +65,6 @@ object AlisaBuild extends Build {
 			libraryDependencies ++= deps,
 			exportJars := true,
 			mainClass in(Compile, packageBin) := Some("alisa.Alisa")
-		) ++ OneJar.oneJarSettings ++ net.virtualvoid.sbt.graph.Plugin.graphSettings
+		) ++ OneJar.oneJarSettings
 	)
 }
