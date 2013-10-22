@@ -50,6 +50,14 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		networkReconnect
 
 
+	override protected def handleLine(line: String) {
+		try {
+			super.handleLine(line)
+		} catch {
+			case e: Exception => logError(s"Failed to handle line \"$line\"", e)
+		}
+	}
+
 	private def changeUserChanModes(channel: String, nick: String,
 	                                change: (Set[Char]) => Set[Char]) {
 		userMap.get(nick) match {
