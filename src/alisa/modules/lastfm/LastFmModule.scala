@@ -127,11 +127,11 @@ final class LastFmModule(apiKey: String, noLfmCache: Boolean)
 	}
 
 	private def appendTrack(sb: StringBuilder, track: Track) {
-		sb ++= MC(MC.LIGHT_GREEN) ++= track.getName += MC.CLEAR += ' '
-		sb ++= "by " ++= MC(MC.PINK) ++= track.getArtist += MC.CLEAR += ' '
-		if (track.getAlbum != null && !track.getAlbum.isEmpty) {
-			sb ++= "on " ++= MC(MC.LIGHT_CYAN) ++= track.getAlbum += MC.CLEAR
-		}
+		sb ++= MC(MC.LIGHT_GREEN) ++= track.getName += MC.CLEAR
+		if (track.getArtist != null && !track.getAlbum.isEmpty)
+			sb ++= " by " ++= MC(MC.PINK) ++= track.getArtist += MC.CLEAR
+		if (track.getAlbum != null && !track.getAlbum.isEmpty)
+			sb ++= " on " ++= MC(MC.LIGHT_CYAN) ++= track.getAlbum += MC.CLEAR
 
 		def appendTags(tags: Collection[String]) {
 			val it = tags.iterator
