@@ -114,8 +114,6 @@ object ConfigParser extends Logger {
 			val p = chan(0)
 			if (p != '&' && p != '#' && p != '+' && p != '!')
 				'#' + chan
-			else if (p == '%')
-				'#' + chan.substring(1)
 			else
 				chan
 		}
