@@ -38,13 +38,13 @@ How can I run it?
 
 You need JRE7.
 
-* Run with test config
+* Run with test `alisa.conf` in current directory
 
 		java -jar target/alisa-VERSION.jar
 
 * Run with other config
 
-		java -jar target/alisa-VERSION.jar alisa.conf
+		java -jar target/alisa-VERSION.jar /etc/alisa.conf
 
 * Run with verbose logging
 

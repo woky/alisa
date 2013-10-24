@@ -10,7 +10,7 @@ import IrcEventHandlers._
 
 object Alisa extends Logger {
 
-	val TEST_CONFIG = "alisa-test.conf"
+	val TEST_CONFIG = "alisa.conf"
 
 	def main(args: Array[String]) {
 		val termHandler = new SignalHandler {
