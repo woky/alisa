@@ -8,11 +8,17 @@ Cute and kindhearted IRC bot.
 What can it do?
 ----------------
 
+("alisa" denotes current bot's nick)
+
 * Find URLs in messages and send brief info about them (title for HTML, content
   type and size for rest)
 
-* Log chat to Lucene and search it via chat or web (say "alisa: log" for help,
-  where _alisa_ is bot's current nick)
+* Log chat to Lucene and search it via chat or web. Say "alisa: log" for help.
+
+* Show recently played Last.fm track. Say "alisa: lf". If your IRC ~username
+  (not nick!) is different from your Last.fm username you have to pair it by
+  saying "alisa: lf your_lastfm_username". You have to do this only once. "np"
+  is alias for "lf".
 
 * Hug
 
