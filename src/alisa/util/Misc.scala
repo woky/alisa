@@ -86,4 +86,15 @@ object Misc {
 	def escapeStringUnicode(s: String): CharSequence = escapeString(s, escapeCharUnicode)
 
 	def escapeStringASCII(s: String): CharSequence = escapeString(s, escapeCharASCII)
+
+	lazy val INT_RE = Pattern.compile("^-?\\d+$")
+
+	def looksLikeInt(str: String) = INT_RE.matcher(str).matches
+
+	def parseInt(str: String): Option[Int] =
+		try {
+			Some(str.toInt)
+		} catch {
+			case _: NumberFormatException => None
+		}
 }

@@ -38,7 +38,6 @@ object AlisaBuild extends Build {
 		"com.google.guava" % "guava" % "14.0.1",
 		"com.google.code.findbugs" % "jsr305" % "2.0.1" % "provided",
 		"com.jsuereth" %% "scala-arm" % "1.3",
-		"de.u-mass" % "lastfm-java" % "0.1.2",
 		/*
 		"org.scala-lang" % "scala-reflect" % scalaVer,
 		"net.java.dev.jna" % "jna" % "3.4.0",
