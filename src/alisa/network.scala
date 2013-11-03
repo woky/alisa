@@ -389,7 +389,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 					val csName = csMatch.getName
 					logDebug(s"Detected charset: $csName")
 					try {
-						Charset.forName(csMatch.getName)
+						Charset.forName(csName)
 					} catch {
 						case e@(_: UnsupportedEncodingException |
 								_: IllegalCharsetNameException) =>
