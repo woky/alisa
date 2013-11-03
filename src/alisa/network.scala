@@ -54,7 +54,8 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		try {
 			super.handleLine(line)
 		} catch {
-			case e: Exception => logError("Failed to handle line \"" + line + "\"", e)
+			case e: Exception =>
+				logError("Failed to handle line \"" + Misc.escapeStringASCII(line) + "\"", e)
 		}
 	}
 
