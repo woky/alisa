@@ -1,9 +1,9 @@
 package alisa
 
 import org.jibble.pircbot.{User, Colors, IrcException, PircBot}
-import java.io.IOException
+import java.io.{UnsupportedEncodingException, IOException}
 import java.util.concurrent.{Executors, ExecutorService, TimeUnit}
-import java.nio.charset.Charset
+import java.nio.charset.{IllegalCharsetNameException, Charset}
 import java.nio.CharBuffer
 import com.ibm.icu.text.CharsetDetector
 import java.nio.charset.spi.CharsetProvider
@@ -381,10 +381,27 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 			val bbuf = INPUT_CHARSET.newEncoder.encode(CharBuffer.wrap(msg))
 			val detector = new CharsetDetector
 			detector.setText(new ByteBufferInputStream(bbuf.asReadOnlyBuffer))
-			val csName = detector.detect.getName
-			logDebug(s"Detected charset: $csName")
 
-			val charset = Charset.forName(csName)
+			val charset = {
+				val csMatch = detector.detect
+				if (csMatch != null) {
+					val csName = csMatch.getName
+					logDebug(s"Detected charset: $csName")
+					try {
+						Charset.forName(csMatch.getName)
+					} catch {
+						case e@(_: UnsupportedEncodingException |
+								_: IllegalCharsetNameException) =>
+							logWarn("Invalid charset detected (" + csName + "). Message: \""
+									+ Misc.escapeStringASCII(msg) + "\"", e)
+							INPUT_CHARSET
+					}
+				} else {
+					logDebug("No charset detected")
+					INPUT_CHARSET
+				}
+			}
+
 			if (INPUT_CHARSET == charset) {
 				logDebug("Not decoding")
 				msg
