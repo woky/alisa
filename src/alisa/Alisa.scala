@@ -130,9 +130,12 @@ object Alisa extends Logger {
 
 	def initLogging(debug: Boolean) {
 		LogManager.getLogManager.reset
-		System.setProperty(
-			"java.util.logging.SimpleFormatter.format",
-			"%1tc %4$s [%3$s] %5$s%6$s%n")
+		val format =
+			if (debug)
+				"%1tc %4$s [%3$s] %5$s%6$s%n"
+			else
+				"%4$s [%3$s] %5$s%6$s%n"
+		System.setProperty("java.util.logging.SimpleFormatter.format", format)
 		val root = JDKLogger.getLogger("")
 		val level = if (debug) Level.FINEST else Level.INFO
 		root.setLevel(level)
