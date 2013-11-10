@@ -55,8 +55,7 @@ object UrlInfoCommon extends Logger {
 	final val MAX_URL_INFO_LENGTH = 460
 	final val IGNORE_URLS_TAG = "nl"
 	final val URL_PROTO_REGEX = Pattern.compile(s"\\b(?:https?://|$IGNORE_URLS_TAG\\b)")
-	final val CHARSET_REGEX = Pattern.compile("charset=(\\S+)")
-	final val QUOTED_STR_REGEX = Pattern.compile("\".*?\"")
+	final val CHARSET_REGEX = Pattern.compile("charset\\s*=\\s*(\\S+)")
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val TITLE_PREFIX = "title: "
 	final val LONG_MSG_SUFFIX = "..."
@@ -286,10 +285,9 @@ object UrlInfoCommon extends Logger {
 								val matcher = CHARSET_REGEX.matcher(ct)
 								if (matcher.find) {
 									val matched = matcher.group(1)
-									val quotMatcher = QUOTED_STR_REGEX.matcher(matched)
 									val name =
-										if (quotMatcher.matches)
-											quotMatcher.group(1)
+										if (matched.startsWith("\"") && matched.endsWith("\""))
+											matched.substring(1, matched.length - 1)
 										else
 											matched
 									try {
