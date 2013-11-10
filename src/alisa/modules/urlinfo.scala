@@ -185,10 +185,10 @@ object UrlInfoCommon extends Logger {
 		logWarn(s"URI: $url: $err", ex)
 	}
 
-	def appendUrlInfo(url: URL, buf: UrlInfoMessageBuffer, config: UrlInfoConfig) {
+	def appendUrlInfo(startUrl: URL, buf: UrlInfoMessageBuffer, config: UrlInfoConfig) {
 		@tailrec
-		def iter(visited: Set[URI], redirCount: Int) {
-			val httpConn = url.openConnection.asInstanceOf[HttpURLConnection]
+		def iter(nextUrl: URL, visited: Set[URI], redirCount: Int) {
+			val httpConn = nextUrl.openConnection.asInstanceOf[HttpURLConnection]
 
 			httpConn.setConnectTimeout(config.connTimeout)
 			httpConn.setReadTimeout(config.soTimeout)
@@ -253,7 +253,7 @@ object UrlInfoCommon extends Logger {
 								val len = cl.toLong
 								appendHeader("size", prefixUnit(len, "B"))
 							} catch {
-								case e: NumberFormatException => logUrlError(url, s"Invalid length: $cl", e)
+								case e: NumberFormatException => logUrlError(nextUrl, s"Invalid length: $cl", e)
 							}
 						}
 
@@ -298,7 +298,7 @@ object UrlInfoCommon extends Logger {
 									} catch {
 										case e@(_: UnsupportedEncodingException |
 												_: IllegalCharsetNameException) => {
-											logUrlError(url, s"Unknown encoding: $name", e)
+											logUrlError(nextUrl, s"Unknown encoding: $name", e)
 											None
 										}
 									}
@@ -333,7 +333,7 @@ object UrlInfoCommon extends Logger {
 								appendGeneralUriInfo
 						} catch {
 							case e@(_: IOException | _: SAXException) => {
-								logUrlError(url, "Failed to get/parse page", e)
+								logUrlError(nextUrl, "Failed to get/parse page", e)
 								appendGeneralUriInfo
 							}
 						}
@@ -356,7 +356,7 @@ object UrlInfoCommon extends Logger {
 							newOptUrl match {
 								case Some(newUri) =>
 									if (!visited.contains(newUri)) {
-										iter(visited + newUri, redirCount + 1)
+										iter(newUri.toURL, visited + newUri, redirCount + 1)
 									} else {
 										buf.append("cyclic redirects")
 									}
@@ -375,7 +375,7 @@ object UrlInfoCommon extends Logger {
 		}
 
 		CookieHandler.setDefault(new CookieManager())
-		iter(Set(), 0)
+		iter(startUrl, Set(), 0)
 	}
 }
 
