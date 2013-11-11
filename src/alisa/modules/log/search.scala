@@ -22,12 +22,6 @@ import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import java.net.InetSocketAddress
 
-/*
- * TODO
- * It seems that HttpObjectAggregator doesn't work because each message is
- * sent in separate HTTP chunk or we don't use it correctly.
- */
-
 final class SearchServer(bindAddr: InetSocketAddress, allowedIds: AllowedIds,
                          lucene: LuceneService) {
 
@@ -132,7 +126,6 @@ private final class SearchHandler(allowedIds: AllowedIds, lucene: LuceneService)
 
 		try {
 			val sParams = LuceneSearchParams(limit, byTime)
-			// XXX search in different thread?
 			val results = lucene.search(query, luceneChan, sParams)
 
 			val resp = new DefaultHttpResponse(HTTP_1_1, OK)
