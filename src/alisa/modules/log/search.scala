@@ -8,7 +8,7 @@ import io.netty.handler.codec.http.HttpHeaders._
 import io.netty.handler.codec.http.HttpResponseStatus._
 import io.netty.handler.codec.http.HttpVersion._
 import alisa.util.Logger
-import io.netty.buffer.Unpooled
+import io.netty.buffer.{ByteBuf, Unpooled}
 import io.netty.util.CharsetUtil._
 import scala.collection.JavaConversions._
 import io.netty.handler.stream.{ChunkedWriteHandler, ChunkedInput}
@@ -93,6 +93,8 @@ private object SearchHandler {
 	val DEF_QUERY = "*"
 	val DEF_BYTIME = true
 	val DEF_LIMIT = 50
+
+	val MAX_CHUNK_SIZE = 8192 - 512
 }
 
 private final class SearchHandler(allowedIds: AllowedIds, lucene: LuceneService)
@@ -165,6 +167,8 @@ private final class SearchChunkedInput(it: Iterator[LuceneStoredMessage])
 
 	private val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm")
 
+	private var prevMsg: ByteBuf = _
+
 	def isEndOfInput = !it.hasNext
 
 	def close() {}
@@ -174,13 +178,33 @@ private final class SearchChunkedInput(it: Iterator[LuceneStoredMessage])
 		s"$time <${msg.stored.nick}> ${msg.stored.message}\n"
 	}
 
-	def readChunk(ctx: ChannelHandlerContext) = {
-		if (it.hasNext) {
-			val msg = formatMsg(it.next)
-			val buf = Unpooled.copiedBuffer(msg, UTF_8)
-			new DefaultHttpContent(buf)
+	private def nextMsg =
+		if (prevMsg != null) {
+			val tmp = prevMsg
+			prevMsg = null
+			tmp
+		} else if (it.hasNext) {
+			Unpooled.copiedBuffer(formatMsg(it.next), UTF_8)
 		} else {
 			null
 		}
-	}
+
+	def readChunk(ctx: ChannelHandlerContext) =
+		nextMsg match {
+			case null => null
+			case msg =>
+				val buf = Unpooled.buffer(SearchHandler.MAX_CHUNK_SIZE)
+				def iter(curMsg: ByteBuf) {
+					buf.writeBytes(curMsg, Math.min(buf.writableBytes, curMsg.readableBytes))
+					if (buf.isWritable)
+						nextMsg match {
+							case null =>
+							case msg => iter(msg)
+						}
+					else if (curMsg.isReadable)
+						prevMsg = curMsg
+				}
+				iter(msg)
+				new DefaultHttpContent(buf)
+		}
 }
