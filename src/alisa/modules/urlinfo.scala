@@ -18,6 +18,7 @@ import Misc._
 import annotation.tailrec
 import scala.Some
 import alisa.util.{Logger, LimitedInputStream}
+import scala.collection.JavaConversions._
 
 final class UrlInfoProvider extends ModuleProvider {
 
@@ -42,12 +43,18 @@ final class UrlInfoProvider extends ModuleProvider {
 				.get("soTimeout")
 				.map(_.asInstanceOf[Int])
 				.getOrElse(DEF_SO_TIMEOUT)
-		val config = new UrlInfoConfig(dlLimit, connTimeout, soTimeout)
+    	val domainBlacklist = params
+				.get("host_blacklist")
+				.map(_.asInstanceOf[java.util.List[String]].toList)
+				.getOrElse(Nil)
+				.map(Pattern.compile) // TODO user-friendly PatternSyntaxException
+		val config = new UrlInfoConfig(dlLimit, connTimeout, soTimeout, domainBlacklist)
 		new UrlInfoModule(config)
 	}
 }
 
-final case class UrlInfoConfig(dlLimit: Long, connTimeout: Int, soTimeout: Int) {}
+final case class UrlInfoConfig(dlLimit: Long, connTimeout: Int, soTimeout: Int,
+							   hostBlacklist: List[Pattern]) {}
 
 object UrlInfoCommon extends Logger {
 
@@ -187,6 +194,9 @@ object UrlInfoCommon extends Logger {
 	def appendUrlInfo(startUrl: URL, buf: UrlInfoMessageBuffer, config: UrlInfoConfig) {
 		@tailrec
 		def iter(nextUrl: URL, visited: Set[URI], redirCount: Int) {
+			if (config.hostBlacklist.exists(_.matcher(nextUrl.getHost).matches))
+				return
+
 			val httpConn = nextUrl.openConnection.asInstanceOf[HttpURLConnection]
 
 			httpConn.setConnectTimeout(config.connTimeout)
@@ -389,13 +399,14 @@ final class UrlInfoModule(val config: UrlInfoConfig) extends Module with IrcEven
 			val buf = CharBuffer.allocate(MAX_URL_INFO_LENGTH)
 			val exBuf = new UrlInfoMessageBuffer(buf)
 
-			def allowedUrl(url: URL): Boolean =
+			def allowedUrl(url: URL): Boolean = {
 				try {
 					InetAddress.getAllByName(url.getHost)
 							.forall(a => !a.isLoopbackAddress && !a.isSiteLocalAddress)
 				} catch {
 					case _: UnknownHostException => true
 				}
+			}
 
 			for (url <- findUrls(e.message.decoded).filter(allowedUrl)) {
 				buf.position(0)
