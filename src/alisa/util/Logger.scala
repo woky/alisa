@@ -4,9 +4,10 @@ import java.util.logging.{Level, Logger => JDKLogger}
 
 trait Logger {
 
+	// XXX maybe use just one global instance?
 	private final val logger = JDKLogger.getLogger(getClass.getCanonicalName)
 
-	protected final def logDebug(msg: => String) {
+	protected final def logDebug(msg: => String, ex: Throwable = null) {
 		if (logger.isLoggable(Level.FINE))
 			logger.fine(logMsg(msg))
 	}
