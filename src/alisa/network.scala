@@ -11,6 +11,7 @@ import alisa.util.{Misc, Logger, ByteBufferInputStream}
 import IrcEventHandlers._
 import scala.collection.JavaConversions._
 import java.util.{Map => JMap, HashMap => JHashMap}
+import java.net.UnknownHostException
 
 object AlisaNetwork {
 
@@ -47,7 +48,9 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	if (networkConf.servers.isEmpty)
 		logWarn("No servers for network " + networkConf.name)
 	else
-		networkReconnect
+		synchronized {
+			networkReconnect
+		}
 
 
 	override protected def handleLine(line: String) {
@@ -325,6 +328,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		}
 	}
 
+	// TODO this needs complete overhaul
 	private def networkReconnect {
 		logDebug("Reconnecting")
 
@@ -346,12 +350,12 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 
 					return
 				} catch {
-					case e@(_: IOException | _: IrcException) => {
+					// TODO don't retry server if unknown host and maybe on other errors too
+					case e@(_: IOException | _: IrcException | _: UnknownHostException) =>
 						logError("Could not connect to " + server, e)
 						AlisaNetwork.this.wait(server.reconnDelay)
 						if (destroy)
 							return
-					}
 				}
 			}
 		}
