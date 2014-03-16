@@ -55,7 +55,7 @@ final class LastFmModule(apiKey: String) extends Module with SimpleCommandHandle
 	def handles(cmd: String) = cmd == "lf" || cmd == "lfn" || cmd == "np"
 
 	def handleCommand(event: IrcCommandEvent) {
-		mkArgs(event.args.decoded, regex = WS_SPLIT_REGEX) match {
+		parseArgs(event.args.decoded, regex = WS_SPLIT_REGEX) match {
 			case "user" :: args =>
 				args match {
 					case user :: Nil => sendRecent(event, newUser = Some(user))

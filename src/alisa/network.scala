@@ -249,7 +249,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 
 	def parseCommand(msg: String): Option[(String, String)] = {
 		def mkArgs(line: String) = {
-			val (cmd :: argList) = Misc.mkArgs(line, None, 2, Misc.WS_SPLIT_REGEX)
+			val (cmd :: argList) = Misc.parseArgs(line, None, 2, Misc.WS_SPLIT_REGEX)
 			val args = argList match {
 				case s :: Nil => s
 				case _ => ""

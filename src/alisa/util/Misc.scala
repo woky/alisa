@@ -6,23 +6,28 @@ import java.util.logging.{Logger => JDKLogger}
 
 object Misc {
 
-	def prefixUnit(value: Long, suffix: String, si: Boolean = true): String = {
-		val unit = if (si) 1000 else 1024
-		if (value < unit) {
-			value + " " + suffix
+	def prefixUnit(value: Long, unit: String = "", unitSep: String = "",
+				   si: Boolean = true): String = {
+		val prefixSize = if (si) 1000 else 1024
+		if (value < prefixSize) {
+			value + unitSep + unit
 		} else {
-			val exp = (Math.log(value) / Math.log(unit)).asInstanceOf[Int]
+			val exp = (Math.log(value) / Math.log(prefixSize)).asInstanceOf[Int]
 			val siPrefix = "kMGTPE".charAt(exp - 1)
-			val prefix = if (si) siPrefix else (siPrefix.toUpper + "i")
-			"%.1f %s%s".format(value / Math.pow(unit, exp), prefix, suffix)
+			val prefix = if (si) siPrefix else siPrefix.toUpper + "i"
+			val prefixedVal = value / Math.pow(prefixSize, exp)
+			val intVal = prefixedVal.toInt
+			val fraction = ((prefixedVal - intVal) * 10).toInt
+			"" + intVal + (if (fraction > 0) "." + fraction else "") + prefix + unitSep + unit
 		}
 	}
 
-	val DEFAULT_SPLIT_REGEX = Pattern.compile("\\s*[,; ]\\s*")
-	val WS_SPLIT_REGEX = Pattern.compile("\\s+")
-	val COLON_SPLIT_REGEX = Pattern.compile("\\s*[,;]\\s*")
+	final val DEFAULT_SPLIT_REGEX = Pattern.compile("\\s*[,; ]\\s*")
+	final val WS_SPLIT_REGEX = Pattern.compile("\\s+")
+	final val URL_SPLIT_REGEX = Pattern.compile("&")
+	final val COLON_SPLIT_REGEX = Pattern.compile("\\s*[,;]\\s*")
 
-	def mkArgs(line: String, default: Option[String] = None, limit: Int = -1,
+	def parseArgs(line: String, default: Option[String] = None, limit: Int = -1,
 	           regex: Pattern = DEFAULT_SPLIT_REGEX): List[String] =
 		regex.split(line.trim, limit).toList match {
 			case "" :: Nil =>
@@ -33,12 +38,30 @@ object Misc {
 			case xs => xs
 		}
 
-	val PARAM_REGEX = Pattern.compile("(\\w+)(?:=(\\S+))?")
+	final val PARAM_REGEX = Pattern.compile("(\\w+)(?:=(\\S+))?")
 
-	def mkParams(line: String) = {
+	/**
+	 * Parses line in format
+	 * {{{
+	 * key1=value1 key2  key3=
+	 * }}}
+	 * into
+	 * {{{
+	 * Map(
+	 * 	"key1" -> Some("value1")
+	 * 	"key2" -> None
+	 * 	"key3" -> Some("")
+	 * )
+	 * }}}
+	 *
+	 * @param splitRegex `Pattern` on which to split the line
+	 * @return
+	 */
+	def parseMap(line: String, splitRegex: Pattern = WS_SPLIT_REGEX):
+			Map[String, Option[String]] = {
 		def iter(args: List[String], params: Map[String, Option[String]]): Map[String, Option[String]] =
 			args match {
-				case arg :: xs => {
+				case arg :: xs =>
 					val matcher = PARAM_REGEX.matcher(arg)
 					if (matcher.matches)
 						matcher.group(2) match {
@@ -47,13 +70,13 @@ object Misc {
 						}
 					else
 						iter(xs, params)
-				}
 				case Nil => params
 			}
 
-		iter(mkArgs(line.trim, None, regex = WS_SPLIT_REGEX), Map())
+		iter(parseArgs(line.trim, None, regex = splitRegex), Map())
 	}
 
+	def parseUrlMap(line: String) = parseMap(line, splitRegex = URL_SPLIT_REGEX)
 
 	def escapeChar(c: Char, p: (Char) => Boolean) =
 		if (p(c))

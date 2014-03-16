@@ -25,7 +25,7 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 		}
 
 		if (IrcChannelUser.isAtLeastPrefix('+', event.user.modes)) {
-			val args = mkArgs(event.args.decoded)
+			val args = parseArgs(event.args.decoded)
 			args match {
 				case subcmd :: subargs => subcmd match {
 					case "link" => subargs match {

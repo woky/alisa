@@ -13,10 +13,10 @@ object ActionHandler extends IrcEventHandler {
 		val channel = event.target
 		val sender = event.user.user.nick
 
-		val actParts = mkArgs(event.action.decoded, limit = 2, regex = WS_SPLIT_REGEX)
+		val actParts = parseArgs(event.action.decoded, limit = 2, regex = WS_SPLIT_REGEX)
 		actParts match {
 			case (cmd :: args :: Nil) if cmd.equals("hugs") => {
-				val targets = mkArgs(args, Some(sender))
+				val targets = parseArgs(args, Some(sender))
 				val presentNicks = bot.getUsers(channel).map(_.getNick).toSet
 
 				for (target <- targets) {
