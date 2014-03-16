@@ -6,7 +6,7 @@ After=network.target
 User=alisa
 Group=alisa
 WorkingDirectory=/var/lib/alisa
-ExecStart=java -Xmx400m -jar /usr/local/share/alisa.jar /etc/alisa.conf
+ExecStart=java -jar /usr/local/share/alisa.jar /etc/alisa.conf
 
 [Install]
 WantedBy=multi-user.target
