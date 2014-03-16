@@ -13,7 +13,7 @@ import alisa.util.{Logger, LimitedInputStream}
 object DefaultInfo extends Logger {
 	import Common._
 
-	def fill(buf: MessageBuffer, config: UrlInfoConfig, httpConn: HttpURLConnection) {
+	def fill(buf: MessageBuffer, config: Config, httpConn: HttpURLConnection) {
 		var firstInfo =
 			if (httpConn.getResponseCode != 200) {
 				addStatus(buf, httpConn)

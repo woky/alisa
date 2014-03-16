@@ -40,13 +40,16 @@ final class UrlInfoProvider extends ModuleProvider {
 				.map(_.asInstanceOf[java.util.List[String]].toList)
 				.getOrElse(Nil)
 				.map(Pattern.compile) // TODO user-friendly PatternSyntaxException
-		val config = new UrlInfoConfig(dlLimit, connTimeout, soTimeout, hostBlacklist)
+		val optYtApiKey = params
+				.get("youtube_api_key")
+				.map(_.asInstanceOf[String])
+		val config = new Config(dlLimit, connTimeout, soTimeout, hostBlacklist, optYtApiKey)
 		new UrlInfoModule(config)
 	}
 }
 
-final case class UrlInfoConfig(dlLimit: Long, connTimeout: Int, soTimeout: Int,
-							   hostBlacklist: List[Pattern]) {}
+final case class Config(dlLimit: Long, connTimeout: Int, soTimeout: Int,
+							   hostBlacklist: List[Pattern], optYtApiKey: Option[String]) {}
 
 object Common extends Logger {
 
@@ -58,7 +61,11 @@ object Common extends Logger {
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val TITLE_PREFIX = "Title: "
 	final val MAX_REDIRS = 10
-
+	
+	final val HANDLERS: List[UrlHandler] = List(
+		Youtube
+	)
+	
 	private[this] val sslCtx = {
 		val sslCtx = SSLContext.getInstance("TLS")
 		sslCtx.init(null, Array[TrustManager](
@@ -182,7 +189,7 @@ object Common extends Logger {
 
 }
 
-final class UrlInfoModule(val config: UrlInfoConfig) extends Module with IrcEventHandler
+final class UrlInfoModule(val config: Config) extends Module with IrcEventHandler
 															 with Logger {
 	import Common._
 
@@ -249,6 +256,8 @@ final class UrlInfoModule(val config: UrlInfoConfig) extends Module with IrcEven
 		@tailrec
 		def iterUrls(nextUrl: URL, visited: Set[URI], redirCount: Int) {
 			if (isBlacklisted(nextUrl))
+				return
+			if (HANDLERS.exists(_.fill(buf, config, nextUrl)))
 				return
 
 			val httpConn = nextUrl.openConnection.asInstanceOf[HttpURLConnection]
@@ -351,6 +360,6 @@ final class MessageBuffer(val underlying: CharBuffer) {
 
 trait UrlHandler {
 
-	def fill(buf: MessageBuffer, url: URL): Boolean
+	def fill(buf: MessageBuffer, config: Config, url: URL): Boolean
 }
 
