@@ -89,7 +89,7 @@ object DefaultInfo extends Logger {
 						} catch {
 							case e@(_: UnsupportedEncodingException |
 									_: IllegalCharsetNameException) =>
-								logDebug(s"URL $url, unsupported/illegal HTML charset")
+								logDebug(s"URL $url, unsupported/illegal HTML charset", e)
 								None
 						}
 					} else {
@@ -123,7 +123,7 @@ object DefaultInfo extends Logger {
 					addHttpInfo()
 			} catch {
 				case e@(_: IOException | _: SAXException) =>
-					logDebug(s"URL $url, IO or HTML parse error")
+					logDebug(s"URL $url, IO or HTML parse error", e)
 					addHttpInfo()
 			}
 		} else {
