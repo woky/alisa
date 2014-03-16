@@ -1,6 +1,7 @@
 package alisa
 
 import com.typesafe.config._
+import ConfigValueType._
 import java.util.regex.Pattern
 import scala.collection.JavaConversions._
 import java.io.File
@@ -16,7 +17,7 @@ object ConfigParser extends Logger {
 
 	def build(conf: Config): AlisaConfig = {
 		val networks = conf.getList("networks").toList.map(mkNetworkConfig)
-		val modules = conf.getList("modules").toList.map(mkModuleConfig)
+		val modules = mkModuleConfigs(conf.getList("modules").toList, Nil)
 		val verbose =
 			if (conf.hasPath("verbose"))
 				conf.getBoolean("verbose")
@@ -25,27 +26,21 @@ object ConfigParser extends Logger {
 		AlisaConfig(verbose, networks, modules)
 	}
 
-	def mkModuleConfig(confObj: ConfigValue): ModuleConfig = {
-		if (confObj.valueType == ConfigValueType.STRING) {
-			val name = confObj.unwrapped.asInstanceOf[String].toLowerCase
-			val params = Map.empty[String, AnyRef]
-
-			ModuleConfig(name, params)
-		} else if (confObj.valueType == ConfigValueType.OBJECT) {
-			val conf = confObj.asInstanceOf[ConfigObject].toConfig
-
-			val name = conf.getString("name").toLowerCase
-			val params =
-				if (conf.hasPath("params"))
-					conf.getConfig("params").root.unwrapped.toMap
-				else
-					Map.empty[String, AnyRef]
-
-			ModuleConfig(name, params)
-		} else {
-			fail("Invalid module configuration", confObj)
-		}
-	}
+	def mkModuleConfigs(configObjList: List[ConfigValue], result: List[ModuleConfig])
+	: List[ModuleConfig] =
+		configObjList match {
+			case name :: params :: xs if STRING == name.valueType() &&
+					OBJECT == params.valueType() =>
+				val paramMap = params.asInstanceOf[ConfigObject].toConfig.root.unwrapped.toMap
+				val modConf = ModuleConfig(name.unwrapped().asInstanceOf[String], paramMap)
+				mkModuleConfigs(xs, modConf :: result)
+			case name :: xs if STRING == name.valueType() =>
+				val modConf = ModuleConfig(name.unwrapped().asInstanceOf[String],
+					Map.empty[String, AnyRef])
+				mkModuleConfigs(xs, modConf :: result)
+			case Nil => result
+			case unknown :: _ => fail(s"Invalid module configuration", unknown)
+		} 
 
 	def mkNetworkConfig(confObj: ConfigValue) = {
 		if (confObj.valueType == ConfigValueType.OBJECT) {

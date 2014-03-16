@@ -68,7 +68,6 @@ TODO
 * Better modularity (global/network/channel)
 * log: Log into PostgreSQL, Lucene is huge and it's not that much useful here
 * network: Fix reconnecting already ffs
-* config: Take module parameters from immediate next hash element
 * reply module
 
 THANKS
