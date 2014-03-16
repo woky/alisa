@@ -73,5 +73,6 @@ TODO
 THANKS
 ------
 I was inspired by
+* shell clan (#sh.nezuiz @ QuakeNet)
 * MikuBot by [nipah](https://vocadb.net/Profile/riipah)
 * [tewibot](https://github.com/neeee/tewibot)
