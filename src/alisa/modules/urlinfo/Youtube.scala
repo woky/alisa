@@ -95,7 +95,9 @@ object Youtube extends UrlHandler with Logger {
 	@throws[ClassCastException]
 	@throws[NullPointerException]
 	private def addVideoInfo(buf: MessageBuffer, videoMap: JsonObject) {
-		val title = videoMap.getJsonObject("snippet").getString("title")
+		val snippet = videoMap.getJsonObject("snippet")
+		val title = snippet.getString("title")
+		val channel = snippet.getString("channelTitle")
 		val contentDetails = videoMap.getJsonObject("contentDetails")
 		val durationStr = contentDetails.getString("duration")
 		val nsfw = contentDetails.getJsonObject("contentRating") match {
@@ -115,7 +117,7 @@ object Youtube extends UrlHandler with Logger {
 		buf ++= "YT"
 		if (nsfw)
 			buf += ' ' ++= MC(MC.RED) ++= "NSFW" ++= MC.CLEAR
-		buf ++= ": " ++= title
+		buf ++= ": " ++= title ++= " | " ++= channel
 
 		val duration = Duration.parse(durationStr)
 		val hours = duration.toHours
