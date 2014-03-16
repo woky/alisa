@@ -38,7 +38,7 @@ object ConfigParser extends Logger {
 				val modConf = ModuleConfig(name.unwrapped().asInstanceOf[String],
 					Map.empty[String, AnyRef])
 				mkModuleConfigs(xs, modConf :: result)
-			case Nil => result
+			case Nil => result.reverse
 			case unknown :: _ => fail(s"Invalid module configuration", unknown)
 		} 
 
