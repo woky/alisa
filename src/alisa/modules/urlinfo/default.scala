@@ -9,6 +9,7 @@ import java.nio.charset.{IllegalCharsetNameException, Charset}
 import nu.validator.htmlparser.sax.HtmlParser
 import nu.validator.htmlparser.common.{Heuristics, XmlViolationPolicy}
 import alisa.util.{Logger, LimitedInputStream}
+import scala.util.control.ControlThrowable
 
 object DefaultInfo extends Logger {
 	import Common._
@@ -133,7 +134,7 @@ object DefaultInfo extends Logger {
 
 private final class HtmlTitleExtractor(buf: MessageBuffer) extends DefaultHandler {
 
-	val breakEx = new IOException
+	val breakEx = new IOException with ControlThrowable
 
 	private def break {
 		throw breakEx

@@ -11,6 +11,7 @@ import alisa._
 import annotation.tailrec
 import alisa.util.Logger
 import scala.collection.JavaConversions._
+import scala.util.control.ControlThrowable
 
 final class UrlInfoProvider extends ModuleProvider {
 
@@ -335,7 +336,7 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 
 final class MessageBuffer(val underlying: CharBuffer) {
 
-	val overflowEx = new RuntimeException
+	val overflowEx = new ControlThrowable {}
 
 	def +=(c: Char): this.type = {
 		try {
