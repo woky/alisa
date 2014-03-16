@@ -18,7 +18,7 @@ object Misc {
 			val prefixedVal = value / Math.pow(prefixSize, exp)
 			val intVal = prefixedVal.toInt
 			val fraction = ((prefixedVal - intVal) * 10).toInt
-			"" + intVal + (if (fraction > 0) "." + fraction else "") + prefix + unitSep + unit
+			"" + intVal + (if (fraction > 0) "." + fraction else "") + unitSep + prefix + unit
 		}
 	}
 
