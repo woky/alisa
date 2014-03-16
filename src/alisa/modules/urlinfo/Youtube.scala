@@ -6,7 +6,7 @@ import javax.json._
 import java.io.IOException
 import alisa.util.Logger
 import javax.json.stream.JsonParsingException
-import alisa.util.{MircColors => MC}
+import alisa.util.{MircColors => MC, MessageBuffer}
 import alisa.util.Misc._
 import org.threeten.bp.Duration
 import org.threeten.bp.format.DateTimeParseException
@@ -124,22 +124,8 @@ object Youtube extends UrlHandler with Logger {
 			buf += ' ' ++= MC(MC.RED) ++= "NSFW" ++= MC.CLEAR
 		buf ++= ": " ++= title ++= " | " ++= channel
 
-		val hours = duration.toHours
-		val mins = duration.toMinutes % 60
-		val secs = duration.getSeconds % 60
-		buf ++= " |"
-		if (hours > 0) {
-			buf += ' ' ++= hours += 'h'
-			if (mins > 0)
-				buf += ' ' ++= mins += 'm'
-		} else if (duration.getSeconds > 0) {
-			if (mins > 0)
-				buf += ' ' ++= mins += 'm'
-			if (secs > 0)
-				buf += ' ' ++= secs += 's'
-		} else {
-			buf ++= " live"
-		}
+		buf ++= " | "
+		addDuration(buf, duration.getSeconds, zero = "live")
 
 		buf ++= " | ↑" ++= prefixUnit(likes) ++= " ↓" ++= prefixUnit(dislikes)
 		buf ++= " | " ++= prefixUnit(views) ++= " views" /* ++= "👀"*/

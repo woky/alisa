@@ -5,13 +5,12 @@ import javax.net.ssl._
 import java.security.cert.X509Certificate
 import java.io.IOException
 import java.net._
-import java.nio.{BufferOverflowException, CharBuffer}
+import java.nio.CharBuffer
 import java.nio.charset.Charset
 import alisa._
 import annotation.tailrec
-import alisa.util.Logger
+import alisa.util.{Logger, MessageBuffer}
 import scala.collection.JavaConversions._
-import scala.util.control.ControlThrowable
 
 final class UrlInfoProvider extends ModuleProvider {
 
@@ -44,13 +43,18 @@ final class UrlInfoProvider extends ModuleProvider {
 		val optYtApiKey = params
 				.get("youtube_api_key")
 				.map(_.asInstanceOf[String])
-		val config = new Config(dlLimit, connTimeout, soTimeout, hostBlacklist, optYtApiKey)
+		val optScClientId = params
+				.get("soundcloud_client_id")
+				.map(_.asInstanceOf[String])
+		val config = new Config(dlLimit, connTimeout, soTimeout, hostBlacklist, optYtApiKey,
+			optScClientId)
 		new UrlInfoModule(config)
 	}
 }
 
 final case class Config(dlLimit: Long, connTimeout: Int, soTimeout: Int,
-							   hostBlacklist: List[Pattern], optYtApiKey: Option[String]) {}
+							   hostBlacklist: List[Pattern], optYtApiKey: Option[String],
+							   optScClientId: Option[String]) {}
 
 object Common extends Logger {
 
@@ -64,7 +68,8 @@ object Common extends Logger {
 	final val MAX_REDIRS = 10
 	
 	final val HANDLERS: List[UrlHandler] = List(
-		Youtube
+		Youtube,
+		SoundCloud
 	)
 	
 	private[this] val sslCtx = {
@@ -258,7 +263,10 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 		def iterUrls(nextUrl: URL, visited: Set[URI], redirCount: Int) {
 			if (isBlacklisted(nextUrl))
 				return
-			if (HANDLERS.exists(_.fill(buf, config, nextUrl)))
+			if (HANDLERS.exists(handler => {
+				buf.underlying.position(0)
+				handler.fill(buf, config, nextUrl)
+			}))
 				return
 
 			val httpConn = nextUrl.openConnection.asInstanceOf[HttpURLConnection]
@@ -332,31 +340,6 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 		CookieHandler.setDefault(new CookieManager())
 		iterUrls(startUrl, Set(), 0)
 	}
-}
-
-final class MessageBuffer(val underlying: CharBuffer) {
-
-	val overflowEx = new ControlThrowable {}
-
-	def +=(c: Char): this.type = {
-		try {
-			underlying.append(c)
-			this
-		} catch {
-			case _: BufferOverflowException => throw overflowEx
-		}
-	}
-
-	def ++=(s: CharSequence): this.type = {
-		try {
-			underlying.append(s)
-			this
-		} catch {
-			case _: BufferOverflowException => throw overflowEx
-		}
-	}
-
-	def ++=(s: Any): this.type = ++=(s.toString)
 }
 
 trait UrlHandler {

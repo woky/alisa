@@ -8,7 +8,7 @@ import alisa.util.Misc._
 import java.nio.charset.{IllegalCharsetNameException, Charset}
 import nu.validator.htmlparser.sax.HtmlParser
 import nu.validator.htmlparser.common.{Heuristics, XmlViolationPolicy}
-import alisa.util.{Logger, LimitedInputStream}
+import alisa.util.{Logger, LimitedInputStream, MessageBuffer}
 import scala.util.control.ControlThrowable
 
 object DefaultInfo extends Logger {

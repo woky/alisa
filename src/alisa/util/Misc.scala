@@ -120,4 +120,30 @@ object Misc {
 		} catch {
 			case _: NumberFormatException => None
 		}
+
+	def addDuration(buf: MessageBuffer, totalSecs: Long, zero: => String = "0s") {
+		val secs = totalSecs % 60
+		val totalMins = totalSecs / 60
+		val mins = totalMins % 60
+		val totalHours = totalMins / 60
+		val hours = totalHours % 24
+		val totalDays = totalHours / 24
+
+		if (totalDays > 0) {
+			buf ++= totalDays.toString += 'd'
+			if (hours > 0)
+				buf += ' ' ++= hours += 'm'
+		} else if (totalHours > 0) {
+			buf ++= totalHours += 'h'
+			if (mins > 0)
+				buf += ' ' ++= mins += 'm'
+		} else if (totalSecs > 0) {
+			if (mins > 0)
+				buf ++= mins += 'm' += ' '
+			if (secs > 0)
+				buf ++= secs += 's'
+		} else {
+			buf ++= zero
+		}
+	}
 }
