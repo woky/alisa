@@ -12,47 +12,40 @@ import org.threeten.bp.Duration
 
 object Youtube extends UrlHandler with Logger {
 
-	val STD_HOST_REGEX = Pattern.compile("(?:www\\.)?youtube\\.com")
-	val STD_QUERY_REGEX = Pattern.compile("(?:.*&)?v=([-\\w]+).*")
-	val API_ROOT = "https://www.googleapis.com/youtube/v3/"
-	val QUERY_TPL = API_ROOT + "videos?part=snippet%2CcontentDetails%2Cstatistics"
+	final val STD_HOST_REGEX = Pattern.compile("(?:www\\.)?youtube\\.com")
+	final val STD_QUERY_REGEX = Pattern.compile("(?:.*&)?v=([-\\w]+).*")
+	final val API_ROOT = "https://www.googleapis.com/youtube/v3/"
+	final val QUERY_TPL = API_ROOT + "videos?part=snippet%2CcontentDetails%2Cstatistics"
 
 	override def fill(buf: MessageBuffer, config: Config, url: URL): Boolean = {
-		val optId = {
-			def dotBeId() = {
-				if ("youtu.be" == url.getHost)
-					Some(url.getPath.substring(1))
-				else
-					None
-			}
-
-			if (STD_HOST_REGEX.matcher(url.getHost).matches() && "/watch" == url.getPath) {
-				val queryMatch = STD_QUERY_REGEX.matcher(url.getQuery)
-				if (queryMatch.matches())
-					Some(queryMatch.group(1))
-				else
-					dotBeId()
-			} else {
-				dotBeId()
-			}
-		}
-
-		optId match {
-			case Some(id) => config.optYtApiKey match {
-				case Some(ytApiKey) => getVideoInfo(buf, id, ytApiKey) match {
-					case Some(videoInfo) =>
-						try {
-							addVideoInfo(buf, videoInfo)
-							true
-						} catch {
-							case e@(_: ClassCastException | _: NullPointerException) =>
-								logError(s"Got illegal result [video $id]", e)
-								false
-						}
-					case _ => false
-				}
+		def _fill(id: String, ytApiKey: String) =
+			getVideoInfo(buf, id, ytApiKey) match {
+				case Some(videoInfo) =>
+					try {
+						addVideoInfo(buf, videoInfo)
+						true
+					} catch {
+						case e@(_: ClassCastException | _: NullPointerException) =>
+							logError(s"Got illegal result [video $id]", e)
+							false
+					}
 				case _ => false
 			}
+
+		config.optYtApiKey match {
+			case Some(ytApiKey) =>
+				if ("youtu.be" == url.getHost) {
+					_fill(url.getPath.substring(1), ytApiKey)
+				} else if (STD_HOST_REGEX.matcher(url.getHost).matches() &&
+						"/watch" == url.getPath) {
+					val queryMatch = STD_QUERY_REGEX.matcher(url.getQuery)
+					if (queryMatch.matches())
+						_fill(queryMatch.group(1), ytApiKey)
+					else
+						false
+				} else {
+					false
+				}
 			case _ => false
 		}
 	}
