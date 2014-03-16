@@ -9,6 +9,7 @@ import javax.json.stream.JsonParsingException
 import alisa.util.{MircColors => MC}
 import alisa.util.Misc._
 import org.threeten.bp.Duration
+import org.threeten.bp.format.DateTimeParseException
 
 object Youtube extends UrlHandler with Logger {
 
@@ -25,7 +26,8 @@ object Youtube extends UrlHandler with Logger {
 						addVideoInfo(buf, videoInfo)
 						true
 					} catch {
-						case e@(_: ClassCastException | _: NullPointerException) =>
+						case e@(_: ClassCastException | _: NullPointerException |
+								_: DateTimeParseException) =>
 							logError(s"Got illegal result [video $id]", e)
 							false
 					}
@@ -94,6 +96,7 @@ object Youtube extends UrlHandler with Logger {
 
 	@throws[ClassCastException]
 	@throws[NullPointerException]
+	@throws[DateTimeParseException]
 	private def addVideoInfo(buf: MessageBuffer, videoMap: JsonObject) {
 		val snippet = videoMap.getJsonObject("snippet")
 		val title = snippet.getString("title")
@@ -114,12 +117,13 @@ object Youtube extends UrlHandler with Logger {
 		val likes = stats.getString("likeCount").toInt
 		val dislikes = stats.getString("dislikeCount").toInt
 
+		val duration = Duration.parse(durationStr)
+
 		buf ++= "YT"
 		if (nsfw)
 			buf += ' ' ++= MC(MC.RED) ++= "NSFW" ++= MC.CLEAR
 		buf ++= ": " ++= title ++= " | " ++= channel
 
-		val duration = Duration.parse(durationStr)
 		val hours = duration.toHours
 		val mins = duration.toMinutes % 60
 		val secs = duration.getSeconds % 60
