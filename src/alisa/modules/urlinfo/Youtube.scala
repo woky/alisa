@@ -8,7 +8,8 @@ import alisa.util.Logger
 import javax.json.stream.JsonParsingException
 import alisa.util.{MircColors => MC, MessageBuffer}
 import alisa.util.Misc._
-import org.threeten.bp.Duration
+import alisa.util.DateTime._
+import org.threeten.bp.{LocalDateTime, ZonedDateTime, Duration}
 import org.threeten.bp.format.DateTimeParseException
 
 object Youtube extends UrlHandler with Logger {
@@ -100,7 +101,7 @@ object Youtube extends UrlHandler with Logger {
 	private def addVideoInfo(buf: MessageBuffer, videoMap: JsonObject) {
 		val snippet = videoMap.getJsonObject("snippet")
 		val title = snippet.getString("title")
-		val channel = snippet.getString("channelTitle")
+		val publishedAtStr = snippet.getString("publishedAt")
 		val contentDetails = videoMap.getJsonObject("contentDetails")
 		val durationStr = contentDetails.getString("duration")
 		val nsfw = contentDetails.getJsonObject("contentRating") match {
@@ -118,16 +119,21 @@ object Youtube extends UrlHandler with Logger {
 		val dislikes = stats.getString("dislikeCount").toInt
 
 		val duration = Duration.parse(durationStr)
+		val publishedAt = ZonedDateTime.parse(publishedAtStr).toLocalDateTime
 
 		buf ++= "YT"
 		if (nsfw)
 			buf += ' ' ++= MC(MC.RED) ++= "NSFW" ++= MC.CLEAR
-		buf ++= ": " ++= title ++= " | " ++= channel
-
-		buf ++= " | "
-		addDuration(buf, duration.getSeconds, zero = "live")
-
-		buf ++= " | ↑" ++= prefixUnit(likes) ++= " ↓" ++= prefixUnit(dislikes)
+		buf ++= ": " ++= title
+		buf ++= " | " ++= formatDuration(duration.getSeconds, zero = "live")
+		buf ++= " | " ++= formatPastDateTime(publishedAt, LocalDateTime.now())
+		if (likes > 0 || dislikes > 0) {
+			buf ++= " |"
+			if (likes > 0)
+				buf ++= " ↑" ++= prefixUnit(likes)
+			if (dislikes > 0)
+				buf ++= " ↓" ++= prefixUnit(dislikes)
+		}
 		buf ++= " | " ++= prefixUnit(views) ++= " views" /* ++= "👀"*/
 	}
 }
