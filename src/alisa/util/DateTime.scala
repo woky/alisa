@@ -1,7 +1,7 @@
 package alisa.util
 
-import org.threeten.bp.{Period, LocalDateTime, Duration}
-import org.threeten.bp.format.TextStyle
+import java.time.{Period, LocalDateTime, Duration}
+import java.time.format.TextStyle
 import java.util.Locale
 
 object DateTime {

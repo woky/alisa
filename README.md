@@ -26,7 +26,7 @@ What can it do?
 How can I build it?
 -------------------
 
-You need JDK7 and sbt (Scala Build Tool).
+You need JDK8 and sbt (Scala Build Tool).
 
 		sbt onejar
 
@@ -36,7 +36,7 @@ This will produce one big JAR with all dependencies in
 How can I run it?
 -----------------
 
-You need JRE7.
+You need JRE8.
 
 * Run with test `alisa.conf` in current directory
 

@@ -9,8 +9,8 @@ import javax.json.stream.JsonParsingException
 import alisa.util.{MircColors => MC, MessageBuffer}
 import alisa.util.Misc._
 import alisa.util.DateTime._
-import org.threeten.bp.{LocalDateTime, ZonedDateTime, Duration}
-import org.threeten.bp.format.DateTimeParseException
+import java.time.{LocalDateTime, ZonedDateTime, Duration}
+import java.time.format.DateTimeParseException
 
 object Youtube extends UrlHandler with Logger {
 

@@ -38,7 +38,6 @@ object AlisaBuild extends Build {
 		"com.google.guava" % "guava" % "14.0.1",
 		"com.google.code.findbugs" % "jsr305" % "2.0.1" % "provided",
 		"com.jsuereth" %% "scala-arm" % "1.3",
-		"org.threeten" % "threetenbp" % "0.8.1",
 		"org.glassfish" % "javax.json" % "1.0.4",
 		/*
 		"org.scala-lang" % "scala-reflect" % scalaVer,

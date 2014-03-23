@@ -7,8 +7,8 @@ import javax.json.stream.JsonParsingException
 import alisa.util.{Logger, MessageBuffer}
 import alisa.util.Misc._
 import alisa.util.DateTime._
-import org.threeten.bp.Month
-import org.threeten.bp.format.TextStyle
+import java.time.Month
+import java.time.format.TextStyle
 import java.util.Locale
 
 object SoundCloud extends UrlHandler with Logger {
