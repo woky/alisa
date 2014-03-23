@@ -63,6 +63,8 @@ object AlisaBuild extends Build {
 			scalaSource in Compile <<= baseDirectory / "src",
 			javaSource in Compile <<= baseDirectory / "src",
 			resourceDirectory in Compile <<= baseDirectory / "resources",
+			scalaSource in Test <<= baseDirectory / "test",
+			javaSource in Test <<= baseDirectory / "test",
 			libraryDependencies ++= deps,
 			exportJars := true,
 			mainClass in(Compile, packageBin) := Some("alisa.Alisa")

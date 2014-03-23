@@ -6,6 +6,7 @@ import javax.json.{JsonException, Json, JsonObject}
 import javax.json.stream.JsonParsingException
 import alisa.util.{Logger, MessageBuffer}
 import alisa.util.Misc._
+import alisa.util.DateTime._
 import org.threeten.bp.Month
 import org.threeten.bp.format.TextStyle
 import java.util.Locale
@@ -149,8 +150,7 @@ object SoundCloud extends UrlHandler with Logger {
 			}
 			buf ++= releaseYear
 		}
-		buf ++= " | "
-		addDuration(buf, durationMsec / 1000, zero = "live?")
+		buf ++= " | " ++= formatDuration(durationMsec / 1000, zero = "live?")
 		buf ++= " | " ++= genre
 	}
 
