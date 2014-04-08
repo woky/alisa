@@ -94,42 +94,34 @@ object Common extends Logger {
 
 	def findUrls(line: String) = {
 		def iter(results: List[URL], matcher: Matcher, start: Int): List[URL] = {
-			def addUrl(results: List[URL], s: String): List[URL] =
-				parseUri(s) match {
-					case (Some(uri)) => uri.toURL :: results
-					case None => results
-				}
-
 			if (start < line.length && matcher.find(start)) {
 				val (mStart, mEnd) = (matcher.start, matcher.end)
-
 				if (line.startsWith(IGNORE_URLS_TAG, mStart)) {
 					Nil
 				} else if (mStart == 0 || line(mStart - 1) != '!') {
-					val urlEnd =
-						if (mStart != 0 && line(mStart - 1) == '<') {
-							val pos = line.indexOf('>', mEnd)
-							if (pos < 0)
+					val urlEnd = {
+						val endOrDot = {
+							val wsOrEnd = line.indexWhere(Character.isWhitespace, mEnd)
+							if (wsOrEnd < 0)
 								line.length
 							else
-								pos
-						} else {
-							val wsPos = {
-								val pos = line.indexWhere(c => Character.isWhitespace(c), mEnd)
-								if (pos < 0)
-									line.length
-								else
-									pos
-							}
-							// don't match last dot in "I often visit http://www.zombo.com."
-							if (line(wsPos - 1) == '.')
-								wsPos - 1
-							else
-								wsPos
+								wsOrEnd
 						}
-
-					val newResults = addUrl(results, line.substring(mStart, urlEnd))
-					iter(newResults, matcher, urlEnd + 1)
+						// don't match last dot in "I often visit http://www.zombo.com."
+						if (line(endOrDot - 1) == '.')
+							endOrDot - 1
+						else
+							endOrDot
+					}
+					val strUrl = line.substring(mStart, urlEnd)
+					try {
+						val url = new URL(strUrl)
+						iter(url :: results, matcher, urlEnd + 1)
+					} catch {
+						case _: MalformedURLException =>
+							logDebug("Couldn't parse URL: [" + strUrl + "]")
+							iter(results, matcher, urlEnd + 1)
+					}
 				} else {
 					iter(results, matcher, mEnd)
 				}
@@ -137,55 +129,7 @@ object Common extends Logger {
 				results
 			}
 		}
-
 		iter(Nil, URL_PROTO_REGEX.matcher(line), 0).reverse
-	}
-
-	// TODO No HttpClient involved anymore. Check if it's still relevant and possibly remove it.
-	/*
-	 * This sucks because HttpClient accepts only java.net.URI, URL#toURI()
-	 * is broken (doesn't encode path & query) and URI constructor encodes
-	 * path & query so we need to decode it first so already encoded parts
-	 * will not be encoded twice.
-	 */
-	def parseUri(s: String): Option[URI] = {
-		val url = try {
-			new URL(s)
-		} catch {
-			case e: MalformedURLException =>
-				logWarn("Couldn't parse URL " + s, e)
-				return None
-		}
-
-		def decodePart(s: String): String = {
-			if (s == null)
-				null
-			else
-				URLDecoder.decode(s, "utf-8")
-		}
-
-		val (path, query) = try {
-			(decodePart(url.getPath), decodePart(url.getQuery))
-		} catch {
-			case e: IllegalArgumentException =>
-				logWarn("Couldn't decode URL " + s, e)
-				return None
-		}
-
-		val uri = try {
-			new URI(
-				url.getProtocol,
-				url.getAuthority,
-				path,
-				query,
-				null)
-		} catch {
-			case e: URISyntaxException =>
-				logWarn("Couldn't create URI " + s, e)
-				return None
-		}
-
-		Some(uri)
 	}
 
 	def addStatus(buf: MessageBuffer, httpConn: HttpURLConnection): buf.type = {
@@ -260,7 +204,7 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 
 	private def fill(buf: MessageBuffer, startUrl: URL) {
 		@tailrec
-		def iterUrls(nextUrl: URL, visited: Set[URI], redirCount: Int) {
+		def iterUrls(nextUrl: URL, visited: Set[URL], redirCount: Int) {
 			if (isBlacklisted(nextUrl))
 				return
 			if (HANDLERS.exists(handler => {
@@ -312,16 +256,16 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 						val location = httpConn.getHeaderField("Location")
 						if (location != null) {
 							logDebug(s"redirecting to $location")
-							val newOptUrl = parseUri(location)
-							newOptUrl match {
-								case Some(newUrl) =>
-									if (!visited.contains(newUrl)) {
-										iterUrls(newUrl.toURL, visited + newUrl, redirCount + 1)
-									} else {
-										buf ++= "ERROR: Cyclic redirect, already visited URL: [" ++=
-												newUrl += ']'
-									}
-								case None =>
+							try {
+								val newUrl = new URL(location)
+								if (!visited.contains(newUrl)) {
+									iterUrls(newUrl, visited + newUrl, redirCount + 1)
+								} else {
+									buf ++= "ERROR: Cyclic redirect, already visited URL: [" ++=
+											newUrl += ']'
+								}
+							} catch {
+								case _: MalformedURLException =>
 									buf ++= "ERROR: Couldn't parse Location header URL [" ++=
 											location += ']'
 							}
