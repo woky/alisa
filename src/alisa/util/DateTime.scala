@@ -7,7 +7,7 @@ import java.util.Locale
 object DateTime {
 
 	def formatPastDateTime(past: LocalDateTime, now: LocalDateTime): CharSequence = {
-		assert(now.isAfter(past))
+		require(now.isAfter(past))
 		val period = Period.between(past.toLocalDate, now.toLocalDate)
 		def monthStr() = past.getMonth.getDisplayName(TextStyle.SHORT, Locale.getDefault)
 		if (period.getYears > 0 || (past.getYear != now.getYear &&
