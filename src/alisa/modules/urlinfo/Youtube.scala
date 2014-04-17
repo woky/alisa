@@ -14,7 +14,7 @@ import java.time.format.DateTimeParseException
 
 object Youtube extends UrlHandler with Logger {
 
-	final val STD_HOST_REGEX = Pattern.compile("(?:www\\.)?youtube\\.com")
+	final val STD_HOST_REGEX = Pattern.compile("(?:(?:www|m)\\.)?youtube\\.com")
 	final val STD_QUERY_REGEX = Pattern.compile("(?:.*&)?v=([-\\w]+).*")
 	final val API_ROOT = "https://www.googleapis.com/youtube/v3/"
 	final val QUERY_TPL = API_ROOT + "videos?part=snippet%2CcontentDetails%2Cstatistics"
