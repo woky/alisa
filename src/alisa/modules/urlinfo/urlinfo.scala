@@ -133,7 +133,11 @@ object Common extends Logger {
 	}
 
 	def addStatus(buf: MessageBuffer, httpConn: HttpURLConnection): buf.type = {
-		buf ++= httpConn.getResponseCode += ' ' ++= httpConn.getResponseMessage
+		buf ++= "Status: " ++= httpConn.getResponseCode
+		httpConn.getResponseMessage match {
+			case null =>
+			case msg => buf += ' ' ++= msg
+		}
 		buf
 	}
 
