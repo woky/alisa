@@ -94,6 +94,7 @@ object Common extends Logger {
 	}
 
 	def findUrls(line: String) = {
+		@tailrec
 		def iter(results: List[URL], matcher: Matcher, start: Int): List[URL] = {
 			if (start < line.length && matcher.find(start)) {
 				val (mStart, mEnd) = (matcher.start, matcher.end)
@@ -115,11 +116,9 @@ object Common extends Logger {
 							endOrDot
 					}
 					val strUrl = line.substring(mStart, urlEnd)
-					try {
-						val url = new URL(strUrl)
-						iter(url :: results, matcher, urlEnd + 1)
-					} catch {
-						case _: MalformedURLException =>
+					Try(new URL(strUrl)) match {
+						case Success(url) => iter(url :: results, matcher, urlEnd + 1)
+						case Failure(_: MalformedURLException) =>
 							logDebug("Couldn't parse URL: [" + strUrl + "]")
 							iter(results, matcher, urlEnd + 1)
 					}
