@@ -11,6 +11,7 @@ import alisa._
 import annotation.tailrec
 import alisa.util.{Logger, MessageBuffer}
 import scala.collection.JavaConversions._
+import scala.util.{Success, Failure, Try}
 
 final class UrlInfoProvider extends ModuleProvider {
 
@@ -260,16 +261,13 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 						val location = httpConn.getHeaderField("Location")
 						if (location != null) {
 							logDebug(s"redirecting to $location")
-							try {
-								val newUrl = new URL(location)
-								if (!visited.contains(newUrl)) {
+							Try(new URL(location)) match {
+								case Success(newUrl) if !visited.contains(newUrl) =>
 									iterUrls(newUrl, visited + newUrl, redirCount + 1)
-								} else {
+								case Success(newUrl) =>
 									buf ++= "ERROR: Cyclic redirect, already visited URL: [" ++=
 											newUrl += ']'
-								}
-							} catch {
-								case _: MalformedURLException =>
+								case Failure(_: MalformedURLException) =>
 									buf ++= "ERROR: Couldn't parse Location header URL [" ++=
 											location += ']'
 							}
