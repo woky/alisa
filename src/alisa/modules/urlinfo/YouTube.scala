@@ -12,7 +12,7 @@ import alisa.util.DateTime._
 import java.time.{LocalDateTime, ZonedDateTime, Duration}
 import java.time.format.DateTimeParseException
 
-object Youtube extends UrlHandler with Logger {
+object YouTube extends UrlHandler with Logger {
 
 	final val STD_HOST_REGEX = Pattern.compile("(?:(?:www|m)\\.)?youtube\\.com")
 	final val STD_QUERY_REGEX = Pattern.compile("(?:.*&)?v=([-\\w]+).*")
@@ -95,9 +95,6 @@ object Youtube extends UrlHandler with Logger {
 		}
 	}
 
-	@throws[ClassCastException]
-	@throws[NullPointerException]
-	@throws[DateTimeParseException]
 	private def addVideoInfo(buf: MessageBuffer, videoMap: JsonObject) {
 		val snippet = videoMap.getJsonObject("snippet")
 		val title = snippet.getString("title")
@@ -117,6 +114,7 @@ object Youtube extends UrlHandler with Logger {
 		val views = stats.getString("viewCount").toInt
 		val likes = stats.getString("likeCount").toInt
 		val dislikes = stats.getString("dislikeCount").toInt
+		val channel = snippet.getString("channelTitle")
 
 		val duration = Duration.parse(durationStr)
 		val publishedAt = ZonedDateTime.parse(publishedAtStr).toLocalDateTime
@@ -135,5 +133,6 @@ object Youtube extends UrlHandler with Logger {
 				buf ++= " ↓" ++= prefixUnit(dislikes)
 		}
 		buf ++= " | " ++= prefixUnit(views) ++= " views" /* ++= "👀"*/
+		buf ++= " | by " ++= channel
 	}
 }

@@ -69,7 +69,7 @@ object Common extends Logger {
 	final val MAX_REDIRS = 10
 	
 	final val HANDLERS: List[UrlHandler] = List(
-		Youtube,
+		YouTube,
 		SoundCloud
 	)
 	
