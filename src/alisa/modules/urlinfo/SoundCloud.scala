@@ -129,17 +129,17 @@ object SoundCloud extends UrlHandler with Logger {
 		}
 	}
 
-	@throws[ClassCastException]
-	@throws[NullPointerException]
+	private def has(s: String) = s != null && !s.isEmpty
+
 	private def addTrackOrPlaylistInfo(buf: MessageBuffer, typ: String, doc: JsonObject) {
 		val title = doc.getString("title")
 		val user = doc.getJsonObject("user").getString("username")
 		val durationMsec = doc.getInt("duration")
 		val releaseMonth = doc.getInt("release_month", -1)
 		val releaseYear = doc.getInt("release_year", -1)
-		val genre = doc.getString("genre")
+		val genre = doc.getString("genre", null)
 
-		buf ++= "SC " ++= typ ++= ": " ++= title
+		buf ++= typ ++= ": " ++= title
 		buf ++= " by " ++= user
 		if (releaseYear > 0) {
 			buf ++= " in "
@@ -151,32 +151,54 @@ object SoundCloud extends UrlHandler with Logger {
 			buf ++= releaseYear
 		}
 		buf ++= " | " ++= formatDuration(durationMsec / 1000, zero = "live?")
-		buf ++= " | " ++= genre
+		if (has(genre))
+			buf ++= " | " ++= genre
 	}
 
 	private def addTrackInfo(buf: MessageBuffer, doc: JsonObject) {
-		addTrackOrPlaylistInfo(buf, "track", doc)
+		addTrackOrPlaylistInfo(buf, "Track", doc)
 	}
 
 	private def addPlaylistInfo(buf: MessageBuffer, doc: JsonObject) {
-		addTrackOrPlaylistInfo(buf, "set", doc)
+		addTrackOrPlaylistInfo(buf, "Set", doc)
 	}
 
-	@throws[ClassCastException]
-	@throws[NullPointerException]
 	private def addUserInfo(buf: MessageBuffer, doc: JsonObject) {
 		val user = doc.getString("username")
-		val name = doc.getString("full_name")
-		val city = doc.getString("city")
-		val country = doc.getString("country")
-		val website = doc.getString("website")
+		val name = doc.getString("full_name", null)
+		val city = doc.getString("city", null)
+		val country = doc.getString("country", null)
+		val website = doc.getString("website", null)
 		val trackCount = doc.getInt("track_count")
 		val followerCount = doc.getInt("followers_count")
 
-		buf ++= "SC user: " ++= name ++= " (" ++= user += ')'
-		buf ++= " from " ++= city ++= ", " ++= country
-		buf ++= " | " ++= prefixUnit(trackCount) ++= " ♫"
-		buf ++= " | " ++= prefixUnit(followerCount) ++= " ★"
-		buf ++= " | " ++= website
+		buf ++= "Artist: "
+
+		if (has(name))
+			buf ++= name ++= " (" ++= user += ')'
+		else
+			buf ++= user
+
+		val hasCity = has(city)
+		val hasCountry = has(country)
+		if (hasCity || hasCountry) {
+			buf ++= " from "
+			if (hasCity) {
+				buf ++= city
+				if (hasCountry)
+					buf ++= ", " ++= country
+			} else if (hasCountry) {
+				buf ++= country
+			}
+		}
+
+		if (trackCount > 0)
+			buf ++= " | " ++= prefixUnit(trackCount) ++= " ♫"
+
+		if (followerCount > 0)
+			buf ++= " | " ++= prefixUnit(followerCount) ++= " ★"
+
+		if (has(website))
+			buf ++= " | " ++= website
 	}
 }
