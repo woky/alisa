@@ -1,6 +1,6 @@
 package alisa.modules.lastfm
 
-import alisa.{SimpleCommandHandler2, Module}
+import alisa.{CmdHandler, Module}
 import java.util.concurrent.{Future, Callable, Executors, ConcurrentHashMap}
 import alisa.util.{MircColors => MC, Logger}
 import alisa.util.Misc._
@@ -29,7 +29,7 @@ private object LastFmModule {
 	private val MBID_ATTR_XP = xpc("@mbid")
 }
 
-final class LastFmModule(apiKey: String) extends Module with SimpleCommandHandler2 with Logger {
+final class LastFmModule(apiKey: String) extends Module with CmdHandler with Logger {
 
 	import LastFmModule._
 

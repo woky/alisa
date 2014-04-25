@@ -17,10 +17,9 @@ trait ModuleProvider {
 	def create(params: Map[String, AnyRef]): Module
 }
 
-// TODO module sources
 final class ModuleFactory {
 
-	val providerMap = ServiceLoader
+	private val providerMap = ServiceLoader
 			.load(classOf[ModuleProvider])
 			.map(p => p.name.toLowerCase -> p)
 			.toMap
@@ -28,54 +27,22 @@ final class ModuleFactory {
 	def create(name: String, params: Map[String, AnyRef]) = providerMap(name).create(params)
 }
 
-sealed abstract class SimpleModule(final val name: String)
-		extends Module
-		with ModuleProvider
+abstract class SimpleModule(final val name: String) extends Module with ModuleProvider
 		with IrcEventHandler {
 
-	final override def handler = Some(this)
+	override final def handler = Some(this)
 
-	final def create(params: Map[String, AnyRef]) = this
+	override final def create(params: Map[String, AnyRef]) = this
 }
 
-/*
- * TODO remove following soon
- */
+abstract class SimpleCmdModule(name: String, optCmd: Option[String]) extends SimpleModule(name)
+		with CmdHandler {
 
-abstract class SimpleMessageModule(name: String) extends SimpleModule(name) {
+	def this(name: String) = this(name, Some(name))
 
-	final def handles = Set(classOf[IrcMessageEvent])
-
-	final def handle = {
-		case e: IrcMessageEvent => handleMessage(e)
-	}
-
-	def handleMessage(event: IrcEvent): Boolean
-}
-
-abstract class SimpleAnyCmdModule(name: String) extends SimpleModule(name) {
-
-	final def handles = Set(classOf[IrcCommandEvent])
-
-	final def handle = {
-		case e: IrcCommandEvent => handleCommand(e)
-	}
-
-	def handleCommand(event: IrcCommandEvent): Boolean
-}
-
-abstract class SimpleCmdModule(final val name: String, cmd: String)
-		extends Module with ModuleProvider {
-
-	def this(name: String) = this(name, name)
-
-	final override def handler = Some(new SimpleCommandHandler(cmd) {
-		def handleCommand(event: IrcCommandEvent) {
-			SimpleCmdModule.this.handleCommand(event)
+	override final def handles(cmd: String) =
+		this.optCmd match {
+			case Some(handledCmd) => handledCmd == cmd
+			case _ => true
 		}
-	})
-
-	final def create(params: Map[String, AnyRef]) = this
-
-	def handleCommand(event: IrcCommandEvent)
 }

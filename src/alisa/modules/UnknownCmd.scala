@@ -1,9 +1,9 @@
 package alisa.modules
 
-import alisa.{IrcCommandEvent, SimpleAnyCmdModule}
+import alisa.{IrcCommandEvent, SimpleCmdModule}
 import scala.util.Random
 
-final class UnknownCmd extends SimpleAnyCmdModule("unknowncmd") {
+final class UnknownCmd extends SimpleCmdModule("unknowncmd", None) {
 
 	def randomReply(replies: Seq[String]) = replies(Random.nextInt(replies.length))
 
@@ -11,8 +11,7 @@ final class UnknownCmd extends SimpleAnyCmdModule("unknowncmd") {
 		"S-shut up, pervert!",
 		"Shut up, p-pervert!")
 
-	def handleCommand(event: IrcCommandEvent) = {
+	def handleCommand(event: IrcCommandEvent) {
 		event.network.bot.sendMessage(event.channel, randomReply(shyReplies))
-		false
 	}
 }

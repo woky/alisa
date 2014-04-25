@@ -1,12 +1,12 @@
 package alisa.modules.log
 
-import alisa.{IrcChannelUser, IrcCommandEvent, SimpleCommandHandler}
+import alisa.{IrcChannelUser, IrcCommandEvent, OneCmdHandler}
 import org.jibble.pircbot.PircBot
 import java.net.{InetSocketAddress, URLEncoder}
 import alisa.util.Misc._
 
 final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: String)
-		extends SimpleCommandHandler("log") {
+		extends OneCmdHandler("log") {
 
 	def this(allowedIds: AllowedIds, lucene: LuceneService, addr: InetSocketAddress) =
 		this(allowedIds, lucene,

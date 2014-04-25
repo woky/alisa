@@ -1,11 +1,11 @@
 package alisa.modules.hugs
 
-import alisa.SimpleCommandHandler
+import alisa.OneCmdHandler
 import alisa.util.Misc._
 import scala.Some
 import alisa.IrcCommandEvent
 
-object CmdHandler extends SimpleCommandHandler("hug") {
+object CmdHandler extends OneCmdHandler("hug") {
 
 	import Common._
 
