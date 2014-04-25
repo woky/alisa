@@ -187,7 +187,7 @@ object SoundCloud extends UrlHandler with Logger {
 				buf ++= city
 				if (hasCountry)
 					buf ++= ", " ++= country
-			} else if (hasCountry) {
+			} else {
 				buf ++= country
 			}
 		}
