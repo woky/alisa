@@ -118,8 +118,8 @@ object Common extends Logger {
 					val strUrl = line.substring(mStart, urlEnd)
 					Try(new URL(strUrl)) match {
 						case Success(url) => iter(url :: results, matcher, urlEnd + 1)
-						case Failure(_: MalformedURLException) =>
-							logDebug("Couldn't parse URL: [" + strUrl + "]")
+						case Failure(ex) =>
+							logDebug("Couldn't parse URL: [" + strUrl + "]", ex)
 							iter(results, matcher, urlEnd + 1)
 					}
 				} else {
