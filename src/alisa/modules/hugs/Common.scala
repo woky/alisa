@@ -5,8 +5,11 @@ import scala.util.Random
 object Common {
 
 	val shyReplies = Seq(
-		"%s, I-I do it only because %s ordered me to.",
-		"%s, i-it's not like I feel anything to you.")
+		"%s, I-I only do it because %s ordered me to.",
+		"%s, i-it's not like I feel anything to you.",
+		"%s, you better consider it a privilege that I even converse with you!",
+		"%s, b-be grateful! I may not do it next time.",
+		"%s, it's not like I l-like you or anything stupid.")
 
 	val happyReplies = Seq(
 		"%s, ( ´・‿-) ~ ♥",

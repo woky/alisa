@@ -15,29 +15,28 @@ object ActionHandler extends IrcEventHandler {
 
 		val actParts = parseArgs(event.action.decoded, limit = 2, regex = WS_SPLIT_REGEX)
 		actParts match {
-			case (cmd :: args :: Nil) if cmd.equals("hugs") => {
+			case (cmd :: args :: Nil) if cmd.equals("hugs") =>
 				val targets = parseArgs(args, Some(sender))
 				val presentNicks = bot.getUsers(channel).map(_.getNick).toSet
 
-				for (target <- targets) {
-					val (targetNick, reply) =
-						if (sender.equalsIgnoreCase(target)
-								|| "himself".equalsIgnoreCase(target)
-								|| "herself".equalsIgnoreCase(target))
-							(sender, mkHappyReply(sender))
-						else if (bot.getNick.equalsIgnoreCase(target))
-							(sender, mkEmpathyReply(sender))
-						else if (presentNicks.contains(target))
-							(target, mkHappyReply(target))
-						else
-							(sender, mkHappyReply(sender))
+				val replies = for (target <- targets) yield
+					if (sender.equalsIgnoreCase(target)
+							|| "himself".equalsIgnoreCase(target)
+							|| "herself".equalsIgnoreCase(target))
+						sender -> mkHappyReply(sender)
+					else if (bot.getNick.equalsIgnoreCase(target))
+						sender -> mkEmpathyReply(sender)
+					else if (presentNicks.contains(target))
+						target -> mkHappyReply(target)
+					else
+						sender -> mkHappyReply(sender)
 
-					bot.sendAction(channel, s"hugs $targetNick")
+				for ((nick, reply) <- replies.toMap) {
+					bot.sendAction(channel, s"hugs $nick")
 					bot.sendMessage(channel, reply)
 				}
 
 				false
-			}
 			case _ => true
 		}
 	}
