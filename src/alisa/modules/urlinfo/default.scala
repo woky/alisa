@@ -131,7 +131,7 @@ object DefaultInfo extends Logger {
 						are treated as fatal.
 				*/
 
-				// Initial size of 8096 should be enough most of the time
+				// Initial size of 8192 should be enough most of the time
 				val bufInput = new BufferedInputStream(new LimitedInputStream(
 					httpConn.getInputStream, config.dlLimit))
 				bufInput.mark(config.dlLimit.toInt)
