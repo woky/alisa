@@ -99,29 +99,6 @@ object DefaultInfo extends Logger {
 					}
 				}
 
-				val extractor = new HtmlTitleExtractor(buf)
-				val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
-				parser.setContentHandler(extractor)
-				parser.setHeuristics(
-					if (httpCharset.isDefined)
-						Heuristics.NONE
-					else
-						Heuristics.ICU)
-
-				def extractTitle(input: InputStream) {
-					val xmlSource =
-						if (httpCharset.isDefined)
-							new InputSource(new InputStreamReader(input, httpCharset.get))
-						else
-							new InputSource(input)
-					try {
-						parser.parse(xmlSource)
-					} catch {
-						case extractor.breakEx =>
-						case buf.overflowEx =>
-					}
-				}
-
 				/*
 					from HtmlParser javadoc:
 						By default, this parser doesn't do true streaming but buffers everything
@@ -136,15 +113,36 @@ object DefaultInfo extends Logger {
 					httpConn.getInputStream, config.dlLimit))
 				bufInput.mark(config.dlLimit.toInt)
 
+				val extractor = new HtmlTitleExtractor(buf)
+				val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
+				parser.setContentHandler(extractor)
+				val xmlSource =
+					if (httpCharset.isDefined) {
+						parser.setHeuristics(Heuristics.NONE)
+						new InputSource(new InputStreamReader(bufInput, httpCharset.get))
+					} else {
+						parser.setHeuristics(Heuristics.ICU)
+						new InputSource(bufInput)
+					}
+
+				def extractTitle() {
+					try {
+						parser.parse(xmlSource)
+					} catch {
+						case extractor.breakEx =>
+						case buf.overflowEx =>
+					}
+				}
+
 				parser.setStreamabilityViolationPolicy(XmlViolationPolicy.FATAL)
 				try {
-					extractTitle(bufInput)
+					extractTitle()
 				} catch {
 					case e: SAXException =>
 						logDebug(s"Parsing $url", e)
 						bufInput.reset()
 						parser.setStreamabilityViolationPolicy(XmlViolationPolicy.ALLOW)
-						extractTitle(bufInput)
+						extractTitle()
 				}
 
 				if (buf.underlying.position == oldPos)
