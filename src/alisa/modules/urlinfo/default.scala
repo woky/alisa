@@ -1,7 +1,7 @@
 package alisa.modules.urlinfo
 
 import org.xml.sax.helpers.DefaultHandler
-import java.io.{InputStreamReader, UnsupportedEncodingException, IOException}
+import java.io._
 import org.xml.sax.{SAXException, InputSource, Attributes}
 import java.net.HttpURLConnection
 import alisa.util.Misc._
@@ -102,23 +102,49 @@ object DefaultInfo extends Logger {
 				val extractor = new HtmlTitleExtractor(buf)
 				val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
 				parser.setContentHandler(extractor)
-				//parser.setStreamabilityViolationPolicy(XmlViolationPolicy.FATAL)
+				parser.setHeuristics(
+					if (httpCharset.isDefined)
+						Heuristics.NONE
+					else
+						Heuristics.ICU)
 
-				val limInput = new LimitedInputStream(httpConn.getInputStream, config.dlLimit)
-				val xmlSource =
-					if (httpCharset.isDefined) {
-						parser.setHeuristics(Heuristics.NONE)
-						new InputSource(new InputStreamReader(limInput, httpCharset.get))
-					} else {
-						parser.setHeuristics(Heuristics.ICU)
-						new InputSource(limInput)
+				def extractTitle(input: InputStream) {
+					val xmlSource =
+						if (httpCharset.isDefined)
+							new InputSource(new InputStreamReader(input, httpCharset.get))
+						else
+							new InputSource(input)
+					try {
+						parser.parse(xmlSource)
+					} catch {
+						case extractor.breakEx =>
+						case buf.overflowEx =>
 					}
+				}
 
+				/*
+					from HtmlParser javadoc:
+						By default, this parser doesn't do true streaming but buffers everything
+						first. The parser can be made truly streaming by calling
+						setStreamabilityViolationPolicy(XmlViolationPolicy.FATAL).
+						This has the consequence that errors that require non-streamable recovery
+						are treated as fatal.
+				*/
+
+				// Initial size of 8096 should be enough most of the time
+				val bufInput = new BufferedInputStream(new LimitedInputStream(
+					httpConn.getInputStream, config.dlLimit))
+				bufInput.mark(config.dlLimit.toInt)
+
+				parser.setStreamabilityViolationPolicy(XmlViolationPolicy.FATAL)
 				try {
-					parser.parse(xmlSource)
+					extractTitle(bufInput)
 				} catch {
-					case extractor.breakEx =>
-					case buf.overflowEx =>
+					case e: SAXException =>
+						logDebug(s"Parsing $url", e)
+						bufInput.reset()
+						parser.setStreamabilityViolationPolicy(XmlViolationPolicy.ALLOW)
+						extractTitle(bufInput)
 				}
 
 				if (buf.underlying.position == oldPos)
