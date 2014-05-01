@@ -8,7 +8,7 @@ import alisa.util.Misc._
 import java.nio.charset.{IllegalCharsetNameException, Charset}
 import nu.validator.htmlparser.sax.HtmlParser
 import nu.validator.htmlparser.common.{Heuristics, XmlViolationPolicy}
-import alisa.util.{Logger, LimitedInputStream, MessageBuffer}
+import alisa.util.{MircColors => MC, Logger, LimitedInputStream, MessageBuffer}
 import scala.util.control.ControlThrowable
 
 object DefaultInfo extends Logger {
@@ -35,6 +35,8 @@ object DefaultInfo extends Logger {
 		val ct = httpConn.getHeaderField("Content-Type")
 
 		def addHttpInfo() {
+			buf ++= MC(MC.GREY)
+
 			if (ct != null)
 				addField("content", ct)
 
