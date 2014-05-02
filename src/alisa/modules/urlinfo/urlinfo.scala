@@ -13,6 +13,7 @@ import alisa.util.{Logger, MessageBuffer}
 import MessageBuffer._
 import scala.collection.JavaConversions._
 import scala.util.{Success, Failure, Try}
+import alisa.modules.urlinfo.default.DefaultInfo
 
 final class UrlInfoProvider extends ModuleProvider {
 
