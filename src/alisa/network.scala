@@ -1,13 +1,13 @@
 package alisa
 
 import org.jibble.pircbot.{User, Colors, IrcException, PircBot}
-import java.io.{UnsupportedEncodingException, IOException}
+import java.io.IOException
 import java.util.concurrent.{Executors, ExecutorService, TimeUnit}
-import java.nio.charset.{IllegalCharsetNameException, Charset}
+import java.nio.charset.Charset
 import java.nio.CharBuffer
-import com.ibm.icu.text.CharsetDetector
 import java.nio.charset.spi.CharsetProvider
-import alisa.util.{Misc, Logger, ByteBufferInputStream}
+import alisa.util.{Misc, Logger}
+import Misc._
 import IrcEventHandlers._
 import scala.collection.JavaConversions._
 import java.util.{Map => JMap, HashMap => JHashMap}
@@ -376,47 +376,11 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	private def mkIrcText(orig: String) =
 		IrcText(orig, decodeMessage(Colors.removeFormattingAndColors(orig)))
 
-	def decodeMessage(msg: String) = {
-		logDebug("Decoding message \"" + Misc.escapeStringASCII(msg) + "\"")
-
-		if (msg.forall(_ < 0x80)) {
-			logDebug("Not decoding ASCII message")
+	private def decodeMessage(msg: String) =
+		if (msg.forall(_ < 0x80))
 			msg
-		} else {
-			val bbuf = INPUT_CHARSET.newEncoder.encode(CharBuffer.wrap(msg))
-			val detector = new CharsetDetector
-			detector.setText(new ByteBufferInputStream(bbuf.asReadOnlyBuffer))
-
-			val charset = {
-				val csMatch = detector.detect
-				if (csMatch != null) {
-					val csName = csMatch.getName
-					logDebug(s"Detected charset: $csName")
-					try {
-						Charset.forName(csName)
-					} catch {
-						case e@(_: UnsupportedEncodingException |
-								_: IllegalCharsetNameException) =>
-							logWarn("Invalid charset detected (" + csName + "). Message: \""
-									+ Misc.escapeStringASCII(msg) + "\"", e)
-							INPUT_CHARSET
-					}
-				} else {
-					logDebug("No charset detected")
-					INPUT_CHARSET
-				}
-			}
-
-			if (INPUT_CHARSET == charset) {
-				logDebug("Not decoding")
-				msg
-			} else {
-				val newMsg = charset.decode(bbuf).toString
-				logDebug("Decoded message \"" + newMsg + "\"")
-				newMsg
-			}
-		}
-	}
+		else
+			tryDetectRecode(CharBuffer.wrap(msg), INPUT_CHARSET).toString
 }
 
 object AlisaNetworkCharset extends Charset(AlisaNetwork.CHARSET_NAME, Array()) {

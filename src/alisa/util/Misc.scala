@@ -2,6 +2,10 @@ package alisa.util
 
 import java.util.regex.Pattern
 import java.awt.event.KeyEvent
+import java.nio.CharBuffer
+import java.nio.charset.{IllegalCharsetNameException, Charset}
+import com.ibm.icu.text.CharsetDetector
+import java.io.UnsupportedEncodingException
 
 object Misc {
 
@@ -119,4 +123,26 @@ object Misc {
 		} catch {
 			case _: NumberFormatException => None
 		}
+
+	def recode(buf: CharBuffer, from: Charset, to: Charset): CharBuffer =
+		to.decode(from.encode(buf))
+
+	def tryDetectRecode(buf: CharBuffer, from: Charset): CharBuffer = {
+		val bbuf = from.newEncoder.encode(buf)
+		val detector = new CharsetDetector
+		detector.setText(new ByteBufferInputStream(bbuf.asReadOnlyBuffer))
+		detector.detect match {
+			case null => buf
+			case csMatch =>
+				try {
+					Charset.forName(csMatch.getName) match {
+						case `from` => buf
+						case charset => charset.decode(bbuf)
+					}
+				} catch {
+					case e@(_: UnsupportedEncodingException |
+					        _: IllegalCharsetNameException) => buf
+				}
+		}
+	}
 }
