@@ -11,6 +11,7 @@ import alisa.util.Misc._
 import alisa.util.DateTime._
 import java.time.{LocalDateTime, ZonedDateTime, Duration}
 import java.time.format.DateTimeParseException
+import java.nio.CharBuffer
 
 object YouTube extends UrlHandler with Logger {
 
@@ -19,7 +20,7 @@ object YouTube extends UrlHandler with Logger {
 	final val API_ROOT = "https://www.googleapis.com/youtube/v3/"
 	final val QUERY_TPL = API_ROOT + "videos?part=snippet%2CcontentDetails%2Cstatistics"
 
-	override def fill(buf: MessageBuffer, config: Config, url: URL): Boolean = {
+	override def fill(buf: CharBuffer, config: Config, url: URL): Boolean = {
 		def _fill(id: String, ytApiKey: String) =
 			getVideoInfo(buf, id, ytApiKey) match {
 				case Some(videoInfo) =>

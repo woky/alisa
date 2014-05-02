@@ -5,11 +5,12 @@ import javax.net.ssl._
 import java.security.cert.X509Certificate
 import java.io.IOException
 import java.net._
-import java.nio.CharBuffer
+import java.nio.{BufferOverflowException, CharBuffer}
 import java.nio.charset.Charset
 import alisa._
 import annotation.tailrec
 import alisa.util.{Logger, MessageBuffer}
+import MessageBuffer._
 import scala.collection.JavaConversions._
 import scala.util.{Success, Failure, Try}
 
@@ -67,12 +68,12 @@ object Common extends Logger {
 	final val DEFAULT_HTTP_CHARSET = Charset.forName("latin1")
 	final val TITLE_PREFIX = "Title: "
 	final val MAX_REDIRS = 10
-	
+
 	final val HANDLERS: List[UrlHandler] = List(
 		YouTube,
 		SoundCloud
 	)
-	
+
 	private[this] val sslCtx = {
 		val sslCtx = SSLContext.getInstance("TLS")
 		sslCtx.init(null, Array[TrustManager](
@@ -156,7 +157,6 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 			import Common._
 
 			val buf = CharBuffer.allocate(MAX_MSG_LEN)
-			val exBuf = new MessageBuffer(buf)
 
 			def isAllowedUrl(url: URL): Boolean = {
 				!InetAddress.getAllByName(url.getHost).exists(addr => addr.isLoopbackAddress ||
@@ -179,11 +179,11 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 
 				val msg: CharSequence =
 					try {
-						fill(exBuf, url)
+						fill(buf, url)
 						buf.flip
 						buf
 					} catch {
-						case exBuf.overflowEx =>
+						case e: BufferOverflowException =>
 							buf.limit(buf.capacity)
 							buf.append(ELLIPSIS)
 							buf.flip
@@ -206,13 +206,13 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 	private def isBlacklisted(url: URL) =
 		config.hostBlacklist.exists(_.matcher(url.getHost).matches)
 
-	private def fill(buf: MessageBuffer, startUrl: URL) {
+	private def fill(buf: CharBuffer, startUrl: URL) {
 		@tailrec
 		def iterUrls(nextUrl: URL, visited: Set[URL], redirCount: Int) {
 			if (isBlacklisted(nextUrl))
 				return
 			if (HANDLERS.exists(handler => {
-				buf.underlying.position(0)
+				buf.position(0)
 				handler.fill(buf, config, nextUrl)
 			}))
 				return
@@ -289,6 +289,5 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 
 trait UrlHandler {
 
-	def fill(buf: MessageBuffer, config: Config, url: URL): Boolean
+	def fill(buf: CharBuffer, config: Config, url: URL): Boolean
 }
-

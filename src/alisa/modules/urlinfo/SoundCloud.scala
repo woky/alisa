@@ -10,12 +10,13 @@ import alisa.util.DateTime._
 import java.time.Month
 import java.time.format.TextStyle
 import java.util.Locale
+import java.nio.CharBuffer
 
 object SoundCloud extends UrlHandler with Logger {
 
 	final val API_ROOT = "https://api.soundcloud.com/"
 
-	override def fill(buf: MessageBuffer, config: Config, url: URL): Boolean = {
+	override def fill(buf: CharBuffer, config: Config, url: URL): Boolean = {
 		config.optScClientId match {
 			case Some(clientId) =>
 				if ("soundcloud.com" == url.getHost) {
