@@ -75,7 +75,7 @@ private final class RecodingHandler(buf: CharBuffer) extends TitleHandler(buf) {
 
 	override def endElement(uri: String, name: String, qName: String): Unit =
 		if (streamState == SS_TITLE && ("title" iceq name)) {
-			if (charsetOpt.isDefined)
+			if (charsetOpt.isDefined || allAscii)
 				break()
 			else
 				streamState = SS_HEAD
