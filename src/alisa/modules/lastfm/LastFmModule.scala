@@ -12,34 +12,42 @@ import alisa.util.Xml._
 import resource._
 import java.nio.file.{NoSuchFileException, Files, Paths}
 import scala.collection.JavaConversions._
+import scala.util.control.ControlThrowable
 
 private object LastFmModule {
 
 	final val USER_MAP_FILE = "lastfm-usermap"
 	final val MAX_TAGS = 5
 
-	private val TAGS_XP = xpc("/lfm/toptags/tag/name")
-	private val STATUS_XP = xpc("/lfm/@status")
-	private val TRACK_XP = xpc("/lfm/recenttracks/track[1]")
-	private val NP_XP = xpc("@nowplaying")
-	private val ARTIST_XP = xpc("artist")
-	private val NAME_XP = xpc("name")
-	private val MBID_XP = xpc("mbid")
-	private val ALBUM_XP = xpc("album")
-	private val MBID_ATTR_XP = xpc("@mbid")
+	val TAGS_XP = xpc("/lfm/toptags/tag/name")
+	val STATUS_XP = xpc("/lfm/@status")
+	val TRACK_XP = xpc("/lfm/recenttracks/track[1]")
+	val NP_XP = xpc("@nowplaying")
+	val ARTIST_XP = xpc("artist")
+	val NAME_XP = xpc("name")
+	val MBID_XP = xpc("mbid")
+	val ALBUM_XP = xpc("album")
+	val MBID_ATTR_XP = xpc("@mbid")
+	val LOVED_XP = xpc("loved")
+
+	type UserMap = ConcurrentHashMap[(String, String), String]
+
+	def userKey(event: IrcCommandEvent) = (event.network.name, event.user.user.login)
+
+	case class Failure(msg: String) extends ControlThrowable
+
+	case class TrackInfo(name: String, artist: String, album: Option[String], np: Boolean,
+	                     tags: Vector[String], loved: Boolean)
 }
 
 final class LastFmModule(apiKey: String) extends Module with CmdHandler with Logger {
 
 	import LastFmModule._
 
-	private type UserKey = (String, String)
-	private def userKey(event: IrcCommandEvent) = (event.network.name, event.user.user.login)
-	private type UserMap = ConcurrentHashMap[UserKey, String]
-	private val userMap = loadUserMap
+	private val userMap = loadUserMap()
 
 	private val apiBaseUrl = "https://ws.audioscrobbler.com/2.0/?api_key=" + apiKey
-	private val recentBaseUrl = apiBaseUrl + "&method=user.getRecentTracks&limit=1"
+	private val recentBaseUrl = apiBaseUrl + "&method=user.getRecentTracks&limit=1&extended=1"
 	private val trackTagsBaseUrl = apiBaseUrl + "&method=track.getTopTags&mbid="
 	private val albumTagsBaseUrl = apiBaseUrl + "&method=album.getTopTags&mbid="
 	private val artistTagsBaseUrl = apiBaseUrl + "&method=artist.getTopTags&mbid="
@@ -54,152 +62,139 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 
 	def handles(cmd: String) = cmd == "lf" || cmd == "lfn" || cmd == "np"
 
-	def handleCommand(event: IrcCommandEvent) {
+	def handleCommand(event: IrcCommandEvent): Unit =
 		parseArgs(event.args.decoded, regex = WS_SPLIT_REGEX) match {
-			case "user" :: args =>
-				args match {
-					case user :: Nil => sendRecent(event, newUser = Some(user))
-					case Nil =>
-						userMap.remove(userKey(event))
-						saveUserMap
-					case _ =>
-				}
-			case userOrOffset :: Nil =>
-				parseInt(userOrOffset) match {
-					case Some(offset) => sendRecent(event, offset = Math.abs(offset))
-					case _ => sendRecent(event, newUser = Some(userOrOffset /* user */))
-				}
+			case "user" :: args => args match {
+				case user :: Nil => sendRecent(event, newUser = Some(user))
+				case Nil =>
+					userMap.remove(userKey(event))
+					saveUserMap()
+				case _ =>
+			}
+			case userOrOffset :: Nil => parseInt(userOrOffset) match {
+				case Some(offset) => sendRecent(event, offset = Math.abs(offset))
+				case _ => sendRecent(event, newUser = Some(userOrOffset /* user */))
+			}
 			case Nil => sendRecent(event)
 			case _ =>
 		}
-	}
 
 	private def sendRecent(event: IrcCommandEvent, offset: Int = 0,
-						   newUser: Option[String] = None) {
-		val lfmUser =
-			newUser match {
-				case Some(user) =>
-					userMap.put(userKey(event), user)
-					saveUserMap
-					user
-				case _ => userMap.getOrElse(userKey(event), {
-					val login = event.user.user.login
-					if (login.startsWith("~"))
-						login.substring(1)
-					else
-						login
-				})
-			}
+	                       newUser: Option[String] = None) {
+		val lfmUser = newUser match {
+			case Some(user) =>
+				userMap.put(userKey(event), user)
+				saveUserMap()
+				user
+			case _ => userMap.getOrElse(userKey(event), {
+				val login = event.user.user.login
+				if (login.startsWith("~"))
+					login.substring(1)
+				else
+					login
+			})
+		}
 
 		val nick = event.user.user.nick
 
-		getRecent(lfmUser, offset) match {
-			case t: TrackInfo =>
-				val buf = new StringBuilder
-				buf ++= nick
-				if (!nick.equals(lfmUser))
-					buf ++= " (" ++= lfmUser += ')'
+		try {
+			val t = getRecent(lfmUser, offset)
 
-				buf += ' ' += MC.BOLD
-				if (t.np)
-					buf ++= MC(MC.RED) ++= "np"
-				else
-					buf ++= MC(MC.LIGHT_BLUE) ++= "lp"
-				buf += MC.CLEAR += ' '
+			val buf = new StringBuilder(128)
+			buf ++= nick
+			if (!nick.equals(lfmUser))
+				buf ++= " (" ++= lfmUser += ')'
 
-				buf ++= MC(MC.LIGHT_GREEN) ++= t.name += MC.CLEAR
-				t.artist.foreach(buf ++= " by " ++= MC(MC.PINK) ++= _ += MC.CLEAR)
-				t.album.foreach(buf ++= " on " ++= MC(MC.LIGHT_CYAN) ++= _ += MC.CLEAR)
+			if (t.loved)
+				buf += ' ' ++= MC(MC.RED) += '❤' += MC.CLEAR
 
-				if (!t.tags.isEmpty) {
-					val it = t.tags.iterator
-					buf ++= " ("
-					do {
-						buf ++= it.next
-						if (it.hasNext)
-							buf.append(", ")
-					} while (it.hasNext)
-					buf += ')'
-				}
+			buf += ' ' += MC.BOLD
+			if (t.np)
+				buf ++= MC(MC.RED) ++= "np"
+			else
+				buf ++= MC(MC.LIGHT_BLUE) ++= "lp"
+			buf += MC.CLEAR += ' '
 
-				event.network.bot.sendAction(event.channel, buf.toString)
+			buf ++= MC(MC.LIGHT_GREEN) ++= t.name += MC.CLEAR
+			buf ++= " by " ++= MC(MC.PINK) ++= t.artist += MC.CLEAR
+			t.album.foreach(buf ++= " on " ++= MC(MC.LIGHT_CYAN) ++= _ += MC.CLEAR)
 
-			case Failure(msg) =>
-				event.network.bot.sendMessage(event.channel,
-					s"$nick, cannot proceed, $msg, s-sorry ;_;")
-		}
-	}
-
-	private def doLfmRequest(strUrl: String): Option[XmlNode] = {
-		val url = new URL(strUrl)
-		val conn = url.openConnection.asInstanceOf[HttpURLConnection]
-
-		val doc =
-			try {
-				DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(conn.getInputStream)
-			} catch {
-				case e: Exception =>
-					logWarn("Failed to get or parse XML resource " + url, e)
-					return None
+			if (!t.tags.isEmpty) {
+				val it = t.tags.iterator
+				buf ++= " ("
+				do {
+					buf ++= it.next
+					if (it.hasNext)
+						buf.append(", ")
+				} while (it.hasNext)
+				buf += ')'
 			}
 
-		if (!evalXpathTextOpt(STATUS_XP, doc).exists(_ == "ok")) {
-			logWarn("Last.fm request was not OK. URL: " + url + ", reply:\n" + dumpXml(doc))
-			return None
+			event.network.bot.sendAction(event.channel, buf.toString)
+		} catch {
+			case Failure(msg) => event.network.bot.sendMessage(event.channel, s"$nick, $msg")
 		}
-
-		logDebug("URL: " + url + ", reply:\n" + dumpXml(doc))
-		Some(doc)
 	}
 
-	private trait Result
+	private def fail(msg: String = "something failed, s-sorry ;_;") = throw new Failure(msg)
 
-	private case class Failure(msg: String) extends Result
+	private def doLfmRequest(strUrl: String): XmlNode = {
+		val url = new URL(strUrl)
+		val conn = url.openConnection.asInstanceOf[HttpURLConnection]
+		val doc = try {
+			DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(conn.getInputStream)
+		} catch {
+			case e: Exception =>
+				logWarn("Failed to get or parse XML resource " + url, e)
+				fail()
+		}
+		if (!evalXpathTextOpt(STATUS_XP, doc).exists(_ == "ok")) {
+			logWarn("Last.fm request was not OK. URL: " + url + ", reply:\n" + dumpXml(doc))
+			fail()
+		}
+		doc
+	}
 
-	private case class TrackInfo(name: String, artist: Option[String], album: Option[String],
-								 np: Boolean, tags: Vector[String]) extends Result
-
-	private def getRecent(lfmUser: String, offset: Int): Result = {
+	private def getRecent(lfmUser: String, offset: Int): TrackInfo = {
 		val xmlDoc = doLfmRequest(s"$recentBaseUrl&user=$lfmUser&page=${offset + 1}")
-				.getOrElse(return Failure("Last.fm request failed"))
-
-		val trackNode = evalXpathNodeOpt(TRACK_XP, xmlDoc)
-				.getOrElse(return Failure("there are no recent tracks (append last.fm username once?)"))
-
-		val track = evalXpathTextOpt(NAME_XP, trackNode)
-				.filter(!_.isEmpty)
-				.getOrElse(return Failure("track name is empty"))
 
 		// tfo ~ tags future option
-		val trackTfo =
-			evalXpathTextOpt(MBID_XP, trackNode)
-					.filter(!_.isEmpty)
-					.map(getTagsFuture(trackTagsBaseUrl, _))
 
-		val (artistOpt, artistTfo) =
-			evalXpathNodeOpt(ARTIST_XP, trackNode) map {
-				node =>
-					val name = Option(xmlNodeText(node)).filter(!_.isEmpty)
-					val tags = evalXpathTextOpt(MBID_ATTR_XP, node)
-							.filter(!_.isEmpty)
-							.map(getTagsFuture(artistTagsBaseUrl, _))
-					(name, tags)
-			} getOrElse ((None, None))
+		val trackNode = evalXpathNodeOpt(TRACK_XP, xmlDoc) getOrElse {
+			fail("there are no recent tracks (append last.fm username once?)")
+		}
+		val trackName = evalXpathText(NAME_XP, trackNode)
+		val trackTfo = evalXpathText(MBID_XP, trackNode) match {
+			case mbid if !mbid.isEmpty => Some(getTagsFuture(trackTagsBaseUrl, mbid))
+			case _ => None
+		}
 
-		val (albumOpt, albumTfo) =
-			evalXpathNodeOpt(ALBUM_XP, trackNode) map {
-				node =>
-					val name = Option(xmlNodeText(node)).filter(!_.isEmpty)
-					val tags = evalXpathTextOpt(MBID_ATTR_XP, node)
-							.filter(!_.isEmpty)
-							.map(getTagsFuture(albumTagsBaseUrl, _))
-					(name, tags)
-			} getOrElse ((None, None))
+		val artistNode = evalXpathNode(ARTIST_XP, trackNode)
+		val artistName = evalXpathText(NAME_XP, artistNode)
+		val artistTfo = evalXpathText(MBID_XP, artistNode) match {
+			case mbid if !mbid.isEmpty => Some(getTagsFuture(artistTagsBaseUrl, mbid))
+			case _ => None
+		}
 
-		val np = evalXpathNodeOpt(NP_XP, trackNode).exists(xmlNodeText(_).toBoolean)
+		val albumNode = evalXpathNode(ALBUM_XP, trackNode)
+		val albumName = xmlNodeText(albumNode) match {
+			case "" => None
+			case name => Some(name)
+		}
+		val albumTfo = albumName flatMap { _ =>
+			evalXpathText(MBID_ATTR_XP, albumNode) match {
+				case mbid if !mbid.isEmpty => Some(getTagsFuture(albumTagsBaseUrl, mbid))
+				case _ => None
+			}
+		}
 
+		val np = evalXpathNodeOpt(NP_XP, trackNode).exists(xmlNodeText(_) == "true")
+		val loved = evalXpathText(LOVED_XP, trackNode) == "1"
+
+		// iterate worker results and build list of at max MAX_TAGS tags, then continue
+		// iteration to stop possibly still running remaining workers
 		def selectTags(result: Vector[String], done: Boolean,
-					   parts: List[Option[Future[Vector[String]]]]): Vector[String] =
+		               parts: List[Option[Future[Vector[String]]]]): Vector[String] =
 			parts match {
 				case Some(part) :: xs =>
 					if (!done) {
@@ -220,25 +215,18 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			}
 		val tags = selectTags(Vector.empty, false, List(trackTfo, albumTfo, artistTfo))
 
-		TrackInfo(track, artistOpt, albumOpt, np, tags)
+		TrackInfo(trackName, artistName, albumName, np, tags, loved)
 	}
 
-	private def getTagsFuture(baseUrl: String, mbid: String) = {
+	private def getTagsFuture(baseUrl: String, mbid: String) =
 		tagsExecutor.submit(new Callable[Vector[String]] {
-			def call = {
-				doLfmRequest(baseUrl + mbid) match {
-					case Some(xmlDoc) =>
-						evalXpathNodeList(TAGS_XP, xmlDoc)
-								.take(MAX_TAGS)
-								.map(xmlNodeText)
-								.toVector
-					case _ => Vector.empty
-				}
-			}
+			def call = evalXpathNodeList(TAGS_XP, doLfmRequest(baseUrl + mbid))
+					.take(MAX_TAGS)
+					.map(xmlNodeText)
+					.toVector
 		})
-	}
 
-	private def loadUserMap = {
+	private def loadUserMap() =
 		try {
 			managed(new ObjectInputStream(new BufferedInputStream(
 				Files.newInputStream(Paths.get(USER_MAP_FILE))))) acquireAndGet {
@@ -247,14 +235,12 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 		} catch {
 			case _: NoSuchFileException => new UserMap
 		}
-	}
 
-	private def saveUserMap {
+	private def saveUserMap(): Unit =
 		synchronized {
 			managed(new ObjectOutputStream(new BufferedOutputStream(
 				Files.newOutputStream(Paths.get(USER_MAP_FILE))))) acquireAndGet {
 				in => in.writeObject(userMap)
 			}
 		}
-	}
 }
