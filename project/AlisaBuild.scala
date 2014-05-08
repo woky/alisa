@@ -3,7 +3,7 @@ import sbt.Keys._
 
 object AlisaBuild extends Build {
 
-	val scalaVer = "2.10.3"
+	val scalaVer = "2.11.0"
 
 	val projectInfo = Seq(
 		name := "alisa",
@@ -15,7 +15,7 @@ object AlisaBuild extends Build {
 		mods.map(group % _ % version)
 
 	val nettyDeps = {
-		val v = "4.0.10.Final"
+		val v = "4.0.19.Final"
 		val mods = Seq(
 			"common",
 			"buffer",
@@ -27,17 +27,17 @@ object AlisaBuild extends Build {
 	}
 
 	val deps = Seq(
-		"com.typesafe" % "config" % "1.0.1",
+		"com.typesafe" % "config" % "1.2.1",
 		"pircbot" % "pircbot" % "1.5.0",
 		"nu.validator.htmlparser" % "htmlparser" % "1.4",
-		"com.ibm.icu" % "icu4j" % "51.2",
-		"net.sf.jopt-simple" % "jopt-simple" % "4.5",
-		"org.apache.lucene" % "lucene-core" % "4.3.0",
-		"org.apache.lucene" % "lucene-analyzers-common" % "4.3.0",
-		"org.apache.lucene" % "lucene-queryparser" % "4.3.0",
-		"com.google.guava" % "guava" % "14.0.1",
+		"com.ibm.icu" % "icu4j" % "53.1",
+		"net.sf.jopt-simple" % "jopt-simple" % "4.6",
+		"org.apache.lucene" % "lucene-core" % "4.7.2",
+		"org.apache.lucene" % "lucene-analyzers-common" % "4.7.2",
+		"org.apache.lucene" % "lucene-queryparser" % "4.7.2",
+		"com.google.guava" % "guava" % "17.0",
 		"com.google.code.findbugs" % "jsr305" % "2.0.1" % "provided",
-		"com.jsuereth" %% "scala-arm" % "1.3",
+		"com.jsuereth" %% "scala-arm" % "1.4",
 		"org.glassfish" % "javax.json" % "1.0.4",
 		/*
 		"org.scala-lang" % "scala-reflect" % scalaVer,
@@ -49,7 +49,7 @@ object AlisaBuild extends Build {
 		 * Test dependencies
 		 */
 		"junit" % "junit" % "4.11" % "test",
-		"org.scalamock" %% "scalamock-scalatest-support" % "3.0.1" % "test",
+		"org.scalamock" %% "scalamock-scalatest-support" % "3.1.1" % "test",
 		"org.powermock" % "powermock-module-junit4" % "1.5" % "test",
 		"org.powermock" % "powermock-api-easymock"  % "1.5" % "test"
 	) ++ nettyDeps
