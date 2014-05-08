@@ -3,7 +3,7 @@ package alisa.modules.urlinfo
 import java.net.{HttpURLConnection, URL}
 import java.util.regex.Pattern
 import javax.json._
-import java.io.IOException
+import java.io.{BufferedInputStream, IOException}
 import alisa.util.Logger
 import javax.json.stream.JsonParsingException
 import alisa.util.{MircColors => MC, MessageBuffer}
@@ -12,6 +12,7 @@ import alisa.util.DateTime._
 import java.time.{LocalDateTime, ZonedDateTime, Duration}
 import java.time.format.DateTimeParseException
 import java.nio.CharBuffer
+import resource._
 
 object YouTube extends UrlHandler with Logger {
 
@@ -62,39 +63,28 @@ object YouTube extends UrlHandler with Logger {
 		logDebug("GET " + QUERY_TPL)
 		try {
 			val httpConn = new URL(query).openConnection().asInstanceOf[HttpURLConnection]
-			try {
-				val input = httpConn.getInputStream
-				try {
-					httpConn.getResponseCode match {
-						case 200 | 203 =>
-							val json = Json.createReader(input).read().asInstanceOf[JsonObject]
-							try {
-								val items = json.getJsonArray("items")
-								if (items.size() > 0)
-									Some(items.getJsonObject(0))
-								else
-									None
-							} catch {
-								case e@(_: ClassCastException | _: NullPointerException) =>
-									logError(s"Got illegal result [video $id]", e)
-									None
-							}
-						case code =>
-							logError(s"Response has status $code [video $id]")
-							None
-					}
-				} catch {
-					case e@(_: JsonException | _: JsonParsingException) =>
-						logError(s"Couldn't parse result [video $id]", e)
+			managed(new BufferedInputStream(httpConn.getInputStream)) acquireAndGet { input =>
+				httpConn.getResponseCode match {
+					case 200 | 203 =>
+						val json = Json.createReader(input).read().asInstanceOf[JsonObject]
+						try {
+							val items = json.getJsonArray("items")
+							if (items.size() > 0)
+								Some(items.getJsonObject(0))
+							else
+								None
+						} catch {
+							case e@(_: ClassCastException | _: NullPointerException) =>
+								logError(s"Got illegal result [video $id]", e)
+								None
+						}
+					case code =>
+						logError(s"Response has status $code [video $id]")
 						None
-				} finally {
-					input.close()
 				}
-			} finally {
-				httpConn.disconnect()
 			}
 		} catch {
-			case e: IOException =>
+			case e@(_: IOException | _: JsonException | _: JsonParsingException) =>
 				logError(s"Request failed [video $id]", e)
 				None
 		}

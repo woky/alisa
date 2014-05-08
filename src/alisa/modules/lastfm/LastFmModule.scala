@@ -44,6 +44,8 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 
 	import LastFmModule._
 
+	System.setProperty("sun.net.http.errorstream.enableBuffering", "true")
+
 	private val userMap = loadUserMap()
 
 	private val apiBaseUrl = "https://ws.audioscrobbler.com/2.0/?api_key=" + apiKey
@@ -141,18 +143,20 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 	private def doLfmRequest(strUrl: String): XmlNode = {
 		val url = new URL(strUrl)
 		val conn = url.openConnection.asInstanceOf[HttpURLConnection]
-		val doc = try {
-			DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(conn.getInputStream)
+		try {
+			managed(new BufferedInputStream(conn.getInputStream)) acquireAndGet { input =>
+				val doc = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(input)
+				if (!evalXpathTextOpt(STATUS_XP, doc).exists(_ == "ok")) {
+					logWarn("Last.fm request was not OK. URL: " + url + ", reply:\n" + dumpXml(doc))
+					fail()
+				}
+				doc
+			}
 		} catch {
 			case e: Exception =>
 				logWarn("Failed to get or parse XML resource " + url, e)
 				fail()
 		}
-		if (!evalXpathTextOpt(STATUS_XP, doc).exists(_ == "ok")) {
-			logWarn("Last.fm request was not OK. URL: " + url + ", reply:\n" + dumpXml(doc))
-			fail()
-		}
-		doc
 	}
 
 	private def getRecent(lfmUser: String, offset: Int): TrackInfo = {

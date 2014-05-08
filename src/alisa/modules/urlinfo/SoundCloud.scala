@@ -67,28 +67,24 @@ object SoundCloud extends UrlHandler with Logger {
 			val httpConn = new URL(urlStr).openConnection().asInstanceOf[HttpURLConnection]
 			httpConn.setInstanceFollowRedirects(false)
 			httpConn.connect
-			try {
-				httpConn.getResponseCode match {
-					case 302 =>
-						val locStr = httpConn.getHeaderField("Location")
-						if (locStr != null) {
-							try {
-								Some(new URL(locStr))
-							} catch {
-								case e: MalformedURLException =>
-									logError(s"Invalid Location header [$locStr] [URL $origUrl]")
-									None
-							}
-						} else {
-							logError(s"No Location header [URL $origUrl]")
-							None
+			httpConn.getResponseCode match {
+				case 302 =>
+					val locStr = httpConn.getHeaderField("Location")
+					if (locStr != null) {
+						try {
+							Some(new URL(locStr))
+						} catch {
+							case e: MalformedURLException =>
+								logError(s"Invalid Location header [$locStr] [URL $origUrl]")
+								None
 						}
-					case code =>
-						logError(s"Response has status $code [URL $origUrl]")
+					} else {
+						logError(s"No Location header [URL $origUrl]")
 						None
-				}
-			} finally {
-				httpConn.disconnect()
+					}
+				case code =>
+					logError(s"Response has status $code [URL $origUrl]")
+					None
 			}
 		} catch {
 			case e: IOException =>

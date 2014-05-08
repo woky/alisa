@@ -149,6 +149,8 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 															 with Logger {
 	import Common._
 
+	System.setProperty("sun.net.http.errorstream.enableBuffering", "true")
+
 	override def handler = Some(this)
 
 	override def handles = Set(classOf[IrcMessageEvent])
