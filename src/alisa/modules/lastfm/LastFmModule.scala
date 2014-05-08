@@ -238,7 +238,7 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			managed(Files.newBufferedReader(Paths.get(USER_MAP_FILE))) acquireAndGet { input =>
 				Iterator.continually(input.readLine)
 						.takeWhile(_ != null)
-						.filter(_.matches("\\s*"))
+						.filter(!_.matches("\\s*"))
 						.map(line => {
 					val Array(network, login, username) = line.split(' ')
 					(network, login) -> username
