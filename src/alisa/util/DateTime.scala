@@ -8,30 +8,25 @@ object DateTime {
 
 	def formatPastDateTime(past: LocalDateTime, now: LocalDateTime): CharSequence = {
 		require(now.isAfter(past))
+		def ago(n: Int, u: String) = n.toString + " " + u + (if (n > 1) "s " else " ") + "ago"
 		val period = Period.between(past.toLocalDate, now.toLocalDate)
-		def monthStr() = past.getMonth.getDisplayName(TextStyle.SHORT, Locale.getDefault)
+		def monthStr = past.getMonth.getDisplayName(TextStyle.SHORT, Locale.getDefault)
 		if (period.getYears > 0 || (past.getYear != now.getYear &&
 				(period.getMonths > 0 || period.getDays >= 7))) {
-			"on " + monthStr() + " " + past.getDayOfMonth + " " + past.getYear
+			monthStr + " " + past.getDayOfMonth + " " + past.getYear
 		} else if (period.getMonths > 0 || period.getDays >= 7) {
-			"on " + monthStr() + " " + past.getDayOfMonth
+			monthStr + " " + past.getDayOfMonth
 		} else if (period.getDays > 1) {
-			period.getDays + "d ago"
+			ago(period.getDays, "day")
 		} else {
 			val duration = Duration.between(past, now)
-			duration.getUnits
-			val days = duration.toDays
-			assert(days <= 1)
-			if (days == 1) {
-				"1d ago"
-			} else if (duration.getSeconds >= 120) {
-				val hours = duration.toHours
-				val minutes = duration.toMinutes % 60
-				assert(hours > 0 || minutes >= 2)
-				if (hours > 0)
-					hours + "h ago"
-				else
-					minutes + "m ago"
+			if (duration.toDays == 1) {
+				"1 day ago"
+			} else if (duration.getSeconds >= 60) {
+				duration.toHours.toInt match {
+					case hours if hours > 0 => ago(hours, "hour")
+					case _ => ago(duration.toMinutes.toInt % 60, "min")
+				}
 			} else {
 				"now"
 			}
