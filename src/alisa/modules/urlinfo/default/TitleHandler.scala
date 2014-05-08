@@ -47,11 +47,11 @@ private abstract class TitleHandler(buf: CharBuffer) extends DefaultHandler {
 		if (streamState == SS_TITLE) {
 			for (i <- 0 until Math.min(length, buf.remaining())) {
 				val c = ch(start + i)
-				checkChar(c)
 				if (Character.isWhitespace(c)) {
 					if (titleState == TS_TEXT)
 						titleState = TS_SPACE
 				} else {
+					checkChar(c)
 					if (titleState == TS_INIT) {
 						buf ++= Common.TITLE_PREFIX
 						titleState = TS_TEXT
