@@ -9,9 +9,9 @@ object ActionHandler extends IrcEventHandler {
 	import Common._
 
 	def handleAction(event: IrcActionEvent) = {
-		val bot = event.network.bot
+		val bot = event.bot
 		val channel = event.target
-		val sender = event.user.user.nick
+		val sender = event.user.nick
 
 		val actParts = parseArgs(event.action.decoded, limit = 2, regex = WS_SPLIT_REGEX)
 		actParts match {

@@ -12,6 +12,6 @@ final class UnknownCmd extends SimpleCmdModule("unknowncmd", None) {
 		"Shut up, p-pervert!")
 
 	def handleCommand(event: IrcCommandEvent) {
-		event.network.bot.sendMessage(event.channel, randomReply(shyReplies))
+		event.bot.sendMessage(event.channel, randomReply(shyReplies))
 	}
 }

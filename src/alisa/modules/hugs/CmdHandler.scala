@@ -10,9 +10,9 @@ object CmdHandler extends OneCmdHandler("hug") {
 	import Common._
 
 	def handleCommand(event: IrcCommandEvent) {
-		val bot = event.network.bot
+		val bot = event.bot
 		val channel = event.channel
-		val sender = event.user.user.nick
+		val sender = event.user.nick
 
 		val targets = parseArgs(event.args.decoded, Some(sender))
 		val presentNicks = bot.getUsers(channel).map(_.getNick).toSet

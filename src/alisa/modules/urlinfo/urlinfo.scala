@@ -169,7 +169,7 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 					isAllowedUrl(url)
 				} catch {
 					case ex: UnknownHostException =>
-						evt.network.bot.sendMessage(evt.channel, "ERROR: Unknown host " +
+						evt.bot.sendMessage(evt.channel, "ERROR: Unknown host " +
 								s"[${url.getHost}]: [${ex.getMessage}]")
 						false
 				}
@@ -198,7 +198,7 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 					}
 
 				if (msg.length > 0)
-					evt.network.bot.sendMessage(evt.channel, msg.toString)
+					evt.bot.sendMessage(evt.channel, msg.toString)
 			}
 
 			true

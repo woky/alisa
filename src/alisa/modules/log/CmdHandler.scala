@@ -15,10 +15,10 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 	import SearchCommon._
 
 	def handleCommand(event: IrcCommandEvent) {
-		val bot = event.network.bot
+		val bot = event.bot
 		val net = event.network.name
 		val channel = event.channel
-		val sender = event.user.user.nick
+		val sender = event.user.nick
 
 		def sendHelp() {
 			bot.sendMessage(channel, s"$sender, usage: $command { link [<query>] | flush }")

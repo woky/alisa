@@ -95,7 +95,7 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			})
 		}
 
-		val nick = event.user.user.nick
+		val nick = event.user.nick
 
 		try {
 			val t = getRecent(lfmUser, offset)
@@ -130,9 +130,9 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 				buf += ')'
 			}
 
-			event.network.bot.sendAction(event.channel, buf.toString)
+			event.bot.sendAction(event.channel, buf.toString)
 		} catch {
-			case Failure(msg) => event.network.bot.sendMessage(event.channel, s"$nick, $msg")
+			case Failure(msg) => event.bot.sendMessage(event.channel, s"$nick, $msg")
 		}
 	}
 

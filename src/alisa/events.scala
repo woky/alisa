@@ -35,13 +35,18 @@ object IrcChannelUser {
 		isAtLeast(PREFIX_TO_MODE(minDesired), modes)
 }
 
-case class IrcChannelUser(user: IrcUser, modes: Set[Char])
+case class IrcChannelUser(user: IrcUser, modes: Set[Char]) {
+
+	final def nick = user.nick
+}
 
 trait IrcEvent {
 
 	def network: IrcNetwork
 
 	//def time: Long // TODO
+
+	final def bot = network.bot
 }
 
 trait IrcChannelEvent extends IrcEvent {
