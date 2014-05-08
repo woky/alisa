@@ -127,13 +127,13 @@ object DefaultInfo extends Logger {
 					httpConn.getInputStream, config.dlLimit))
 				inputBuf.mark(Int.MaxValue)
 
-				val mkSource = () => new InputSource(new InputStreamReader(inputBuf, charset))
+				def source = new InputSource(new InputStreamReader(inputBuf, charset))
 
 				def extractTitle(): CharSequence = {
 					val handler = mkHandler()
 					try {
 						parser.setContentHandler(handler)
-						parser.parse(mkSource())
+						parser.parse(source)
 					} catch {
 						case handler.breakEx =>
 					}
