@@ -227,7 +227,7 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 
 			httpConn.setRequestProperty("Accept", "text/html, text/plain, text/css, text/sgml, */*;q=0.01")
 			httpConn.setRequestProperty("User-Agent", "Lynx/2.8.5rel.1 libwww-FM/2.14 SSL-MM/1.4.1 OpenSSL/0.9.7d")
-			//httpConn.setRequestProperty("Accept-Encoding", "gzip, bzip2")
+			httpConn.setRequestProperty("Accept-Encoding", "gzip, deflate")
 			httpConn.setRequestProperty("Accept-Language", "en")
 
 			httpConn match {
