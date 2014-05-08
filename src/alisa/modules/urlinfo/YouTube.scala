@@ -18,7 +18,10 @@ object YouTube extends UrlHandler with Logger {
 	final val STD_HOST_REGEX = Pattern.compile("(?:(?:www|m)\\.)?youtube\\.com")
 	final val STD_QUERY_REGEX = Pattern.compile("(?:.*&)?v=([-\\w]+).*")
 	final val API_ROOT = "https://www.googleapis.com/youtube/v3/"
-	final val QUERY_TPL = API_ROOT + "videos?part=snippet%2CcontentDetails%2Cstatistics"
+	final val QUERY_TPL = (API_ROOT + "videos?part=snippet,contentDetails,statistics&fields=items("
+			+ "snippet(publishedAt,title,channelTitle),"
+			+ "contentDetails(duration,contentRating/*),"
+			+ "statistics(viewCount,likeCount,dislikeCount))")
 
 	override def fill(buf: CharBuffer, config: Config, url: URL): Boolean = {
 		def _fill(id: String, ytApiKey: String) =
@@ -66,8 +69,9 @@ object YouTube extends UrlHandler with Logger {
 						case 200 | 203 =>
 							val json = Json.createReader(input).read().asInstanceOf[JsonObject]
 							try {
-								if (json.getJsonObject("pageInfo").getInt("totalResults") > 0)
-									Some(json.getJsonArray("items").getJsonObject(0))
+								val items = json.getJsonArray("items")
+								if (items.size() > 0)
+									Some(items.getJsonObject(0))
 								else
 									None
 							} catch {
