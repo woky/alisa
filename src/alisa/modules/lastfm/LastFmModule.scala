@@ -1,7 +1,7 @@
 package alisa.modules.lastfm
 
 import alisa.{CmdHandler, Module}
-import java.util.concurrent.{Future, Callable, Executors, ConcurrentHashMap}
+import java.util.concurrent.{Future, Callable, Executors}
 import alisa.util.{MircColors => MC, Logger}
 import alisa.util.Misc._
 import java.net.{HttpURLConnection, URL}
@@ -11,7 +11,6 @@ import alisa.IrcCommandEvent
 import alisa.util.Xml._
 import resource._
 import java.nio.file.{NoSuchFileException, Files, Paths}
-import scala.collection.JavaConversions._
 import scala.util.control.ControlThrowable
 
 private object LastFmModule {
@@ -30,7 +29,7 @@ private object LastFmModule {
 	val MBID_ATTR_XP = xpc("@mbid")
 	val LOVED_XP = xpc("loved")
 
-	type UserMap = ConcurrentHashMap[(String, String), String]
+	type UserMap = Map[(String, String), String]
 
 	def userKey(event: IrcCommandEvent) = (event.network.name, event.user.user.login)
 
@@ -46,7 +45,7 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 
 	System.setProperty("sun.net.http.errorstream.enableBuffering", "true")
 
-	private val userMap = loadUserMap()
+	private var userMap = loadUserMap()
 
 	private val apiBaseUrl = "https://ws.audioscrobbler.com/2.0/?api_key=" + apiKey
 	private val recentBaseUrl = apiBaseUrl + "&method=user.getRecentTracks&limit=1&extended=1"
@@ -69,8 +68,10 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			case "user" :: args => args match {
 				case user :: Nil => sendRecent(event, newUser = Some(user))
 				case Nil =>
-					userMap.remove(userKey(event))
-					saveUserMap()
+					synchronized {
+						userMap -= userKey(event)
+						saveUserMap()
+					}
 				case _ =>
 			}
 			case userOrOffset :: Nil => parseInt(userOrOffset) match {
@@ -85,8 +86,10 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 	                       newUser: Option[String] = None) {
 		val lfmUser = newUser match {
 			case Some(user) =>
-				userMap.put(userKey(event), user)
-				saveUserMap()
+				synchronized {
+					userMap += userKey(event) -> user
+					saveUserMap()
+				}
 				user
 			case _ => userMap.getOrElse(userKey(event), {
 				val login = event.user.user.login
@@ -230,21 +233,26 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 					.toVector
 		})
 
-	private def loadUserMap() =
+	private def loadUserMap(): UserMap =
 		try {
-			managed(new ObjectInputStream(new BufferedInputStream(
-				Files.newInputStream(Paths.get(USER_MAP_FILE))))) acquireAndGet {
-				in => in.readObject.asInstanceOf[UserMap]
+			managed(Files.newBufferedReader(Paths.get(USER_MAP_FILE))) acquireAndGet { input =>
+				Iterator.continually(input.readLine)
+						.takeWhile(_ != null)
+						.filter(_.matches("\\s*"))
+						.map(line => {
+					val Array(network, login, username) = line.split(' ')
+					(network, login) -> username
+				}).toMap
 			}
 		} catch {
-			case _: NoSuchFileException => new UserMap
+			case _: NoSuchFileException => Map.empty
 		}
 
 	private def saveUserMap(): Unit =
-		synchronized {
-			managed(new ObjectOutputStream(new BufferedOutputStream(
-				Files.newOutputStream(Paths.get(USER_MAP_FILE))))) acquireAndGet {
-				in => in.writeObject(userMap)
-			}
+		managed(Files.newBufferedWriter(Paths.get(USER_MAP_FILE))) acquireAndGet { output =>
+			for (((network, login), username) <- userMap)
+				output.append(network).append(' ')
+						.append(login).append(' ')
+						.append(username).append('\n')
 		}
 }
