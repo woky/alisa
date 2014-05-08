@@ -4,3 +4,4 @@ alisa.modules.log.LogProvider
 alisa.modules.urlinfo.UrlInfoProvider
 alisa.modules.UnknownCmd
 alisa.modules.lastfm.LastFmProvider
+alisa.modules.Help
