@@ -1,7 +1,7 @@
 package alisa.modules.urlinfo
 
 import java.net.{MalformedURLException, HttpURLConnection, URL}
-import java.io.IOException
+import java.io.{BufferedInputStream, IOException}
 import javax.json.{JsonException, Json, JsonObject}
 import javax.json.stream.JsonParsingException
 import alisa.util.{Logger, MessageBuffer}
@@ -11,6 +11,8 @@ import java.time.Month
 import java.time.format.TextStyle
 import java.util.Locale
 import java.nio.CharBuffer
+import resource._
+import scala.Some
 
 object SoundCloud extends UrlHandler with Logger {
 
@@ -97,27 +99,20 @@ object SoundCloud extends UrlHandler with Logger {
 		logDebug("GET " + url)
 		try {
 			val httpConn = url.openConnection().asInstanceOf[HttpURLConnection]
-			try {
-				val input = httpConn.getInputStream
-				try {
-					httpConn.getResponseCode match {
-						case 200 | 203 =>
-							try {
-								Some(Json.createReader(input).read().asInstanceOf[JsonObject])
-							} catch {
-								case e@(_: JsonException | _: JsonParsingException) =>
-									logError(s"Couldn't parse result [URL $url]", e)
-									None
-							}
-						case code =>
-							logError(s"Response has status $code [URL $url]")
-							None
-					}
-				} finally {
-					input.close()
+			managed(new BufferedInputStream(httpConn.getInputStream)) acquireAndGet { input =>
+				httpConn.getResponseCode match {
+					case 200 | 203 =>
+						try {
+							Some(Json.createReader(input).read().asInstanceOf[JsonObject])
+						} catch {
+							case e@(_: JsonException | _: JsonParsingException) =>
+								logError(s"Couldn't parse result [URL $url]", e)
+								None
+						}
+					case code =>
+						logError(s"Response has status $code [URL $url]")
+						None
 				}
-			} finally {
-				httpConn.disconnect()
 			}
 		} catch {
 			case e: IOException =>
