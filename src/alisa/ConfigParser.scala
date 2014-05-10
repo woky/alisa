@@ -55,8 +55,13 @@ object ConfigParser extends Logger {
 					nick
 			val servers = conf.getList("servers").toList.map(mkServerConfig)
 			val channels = conf.getList("channels").toList.map(mkChannelConfig)
+			val delay =
+				if (conf.hasPath("delay"))
+					conf.getInt("delay")
+				else
+					1000
 
-			NetworkConfig(name, nick, finger, servers, channels)
+			NetworkConfig(name, nick, finger, servers, channels, delay)
 		} else {
 			fail("Invalid network configuration", confObj)
 		}

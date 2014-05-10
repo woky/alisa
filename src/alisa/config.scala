@@ -10,7 +10,8 @@ case class NetworkConfig(name: String,
                          nick: String,
                          finger: String,
                          servers: Seq[ServerConfig],
-                         channels: Seq[ChannelConfig])
+                         channels: Seq[ChannelConfig],
+		                 delay: Int)
 
 case class ChannelConfig(name: String)
 

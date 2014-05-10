@@ -44,6 +44,7 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 	setVersion(getFinger)
 	setEncoding(CHARSET_NAME)
 	setVerbose(verbose)
+	setMessageDelay(networkConf.delay)
 
 	if (networkConf.servers.isEmpty)
 		logWarn("No servers for network " + networkConf.name)
