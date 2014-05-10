@@ -45,6 +45,7 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 
 	System.setProperty("sun.net.http.errorstream.enableBuffering", "true")
 
+	@volatile
 	private var userMap = loadUserMap()
 
 	private val apiBaseUrl = "https://ws.audioscrobbler.com/2.0/?api_key=" + apiKey
@@ -68,10 +69,8 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			case "user" :: args => args match {
 				case user :: Nil => sendRecent(event, newUser = Some(user))
 				case Nil =>
-					synchronized {
-						userMap -= userKey(event)
-						saveUserMap()
-					}
+					userMap -= userKey(event)
+					saveUserMap()
 				case _ =>
 			}
 			case userOrOffset :: Nil => parseInt(userOrOffset) match {
@@ -86,10 +85,8 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 	                       newUser: Option[String] = None) {
 		val lfmUser = newUser match {
 			case Some(user) =>
-				synchronized {
-					userMap += userKey(event) -> user
-					saveUserMap()
-				}
+				userMap += userKey(event) -> user
+				saveUserMap()
 				user
 			case _ => userMap.getOrElse(userKey(event), {
 				val login = event.user.user.login
