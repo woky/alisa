@@ -35,14 +35,9 @@ abstract class SimpleModule(final val name: String) extends Module with ModulePr
 	override final def create(params: Map[String, AnyRef]) = this
 }
 
-abstract class SimpleCmdModule(name: String, optCmd: Option[String]) extends SimpleModule(name)
-		with CmdHandler {
+abstract class OneCmdModule(name: String, cmd: String) extends SimpleModule(name) with CmdHandler {
 
-	def this(name: String) = this(name, Some(name))
+	def this(name: String) = this(name, name)
 
-	override final def handles(cmd: String) =
-		this.optCmd match {
-			case Some(handledCmd) => handledCmd == cmd
-			case _ => true
-		}
+	override final def handles(cmd: String) = this.cmd == cmd
 }

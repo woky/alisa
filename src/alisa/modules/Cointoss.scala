@@ -1,9 +1,9 @@
 package alisa.modules
 
-import alisa.{ModuleProvider, SimpleCmdModule, IrcCommandEvent}
+import alisa.{OneCmdModule, IrcCommandEvent}
 import scala.util.Random
 
-final class Cointoss extends SimpleCmdModule("cointoss") with ModuleProvider {
+final class Cointoss extends OneCmdModule("cointoss") {
 
 	def handleCommand(event: IrcCommandEvent) {
 		val result = if (Random.nextBoolean) "heads" else "tails"
