@@ -2,7 +2,7 @@ package alisa.modules.lastfm
 
 import alisa.{CmdHandler, Module}
 import java.util.concurrent.{Future, Callable, Executors}
-import alisa.util.{MircColors => MC, Logger}
+import alisa.util.{MircColors => MC, DateTime, Logger}
 import alisa.util.Misc._
 import java.net.{HttpURLConnection, URL}
 import javax.xml.parsers.DocumentBuilderFactory
@@ -12,6 +12,7 @@ import alisa.util.Xml._
 import resource._
 import java.nio.file.{NoSuchFileException, Files, Paths}
 import scala.util.control.ControlThrowable
+import java.time.{ZoneOffset, LocalDateTime}
 
 private object LastFmModule {
 
@@ -28,6 +29,7 @@ private object LastFmModule {
 	val ALBUM_XP = xpc("album")
 	val MBID_ATTR_XP = xpc("@mbid")
 	val LOVED_XP = xpc("loved")
+	val LAST_TIME_XP = xpc("date/@uts")
 
 	type UserMap = Map[(String, String), String]
 
@@ -35,8 +37,8 @@ private object LastFmModule {
 
 	case class Failure(msg: String) extends ControlThrowable
 
-	case class TrackInfo(name: String, artist: String, album: Option[String], np: Boolean,
-	                     tags: Vector[String], loved: Boolean)
+	case class TrackInfo(name: String, artist: String, album: Option[String],
+	                     lastTime: Option[Int], tags: Vector[String], loved: Boolean)
 }
 
 final class LastFmModule(apiKey: String) extends Module with CmdHandler with Logger {
@@ -110,14 +112,17 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			if (t.loved)
 				buf += ' ' ++= MC(MC.RED) += '❤' += MC.CLEAR
 
-			buf += ' ' += MC.BOLD
-			if (t.np)
-				buf ++= MC(MC.RED) ++= "np"
-			else
-				buf ++= MC(MC.LIGHT_BLUE) ++= "lp"
-			buf += MC.CLEAR += ' '
+			buf += ' ' += MC.BOLD += MC.COLOR_CODE
+			t.lastTime match {
+				case Some(time) =>
+					val dt1 = LocalDateTime.ofEpochSecond(time, 0, ZoneOffset.UTC)
+					val dt2 = LocalDateTime.now(ZoneOffset.UTC)
+					buf ++= MC.LIGHT_BLUE ++= "lp" += MC.CLEAR ++= " ("
+					buf ++= DateTime.formatPastDateTime(dt1, dt2) += ')'
+				case _ => buf ++= MC.RED ++= "np" += MC.CLEAR
+			}
 
-			buf ++= MC(MC.LIGHT_GREEN) ++= t.name += MC.CLEAR
+			buf += ' ' ++= MC(MC.LIGHT_GREEN) ++= t.name += MC.CLEAR
 			buf ++= " by " ++= MC(MC.PINK) ++= t.artist += MC.CLEAR
 			t.album.foreach(buf ++= " on " ++= MC(MC.LIGHT_CYAN) ++= _ += MC.CLEAR)
 
@@ -192,7 +197,10 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			}
 		}
 
-		val np = evalXpathNodeOpt(NP_XP, trackNode).exists(xmlNodeText(_) == "true")
+		val lastTime = evalXpathNodeOpt(NP_XP, trackNode).map(xmlNodeText) match {
+			case Some("true") => None
+			case _ => Some(evalXpathText(LAST_TIME_XP, trackNode).toInt)
+		}
 		val loved = evalXpathText(LOVED_XP, trackNode) == "1"
 
 		// iterate worker results and build list of at max MAX_TAGS tags, then continue
@@ -219,7 +227,7 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			}
 		val tags = selectTags(Vector.empty, false, List(trackTfo, albumTfo, artistTfo))
 
-		TrackInfo(trackName, artistName, albumName, np, tags, loved)
+		TrackInfo(trackName, artistName, albumName, lastTime, tags, loved)
 	}
 
 	private def getTagsFuture(baseUrl: String, mbid: String) =
