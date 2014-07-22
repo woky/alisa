@@ -13,9 +13,13 @@ final class ByteBufferInputStream(buf: ByteBuffer) extends InputStream {
 	}
 
 	override def read(b: Array[Byte], off: Int, len: Int): Int = synchronized {
-		val readLen = Math.min(len, buf.remaining)
-		buf.get(b, off, readLen)
-		readLen
+		if (buf.hasRemaining) {
+			val readLen = Math.min(len, buf.remaining)
+			buf.get(b, off, readLen)
+			readLen
+		} else {
+			-1
+		}
 	}
 
 	override def skip(n: Long) = synchronized {
