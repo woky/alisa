@@ -1,9 +1,9 @@
-import sbt._
 import sbt.Keys._
+import sbt._
 
 object AlisaBuild extends Build {
 
-	val scalaVer = "2.11.0"
+	val scalaVer = "2.11.1"
 
 	val projectInfo = Seq(
 		name := "alisa",
@@ -15,7 +15,7 @@ object AlisaBuild extends Build {
 		mods.map(group % _ % version)
 
 	val nettyDeps = {
-		val v = "4.0.19.Final"
+		val v = "4.0.21.Final"
 		val mods = Seq(
 			"common",
 			"buffer",
