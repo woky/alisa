@@ -39,7 +39,10 @@ private abstract class TitleHandler(buf: CharBuffer) extends DefaultHandler {
 	protected final def break(): Nothing = throw breakEx
 	protected def checkChar(c: Char) {}
 
-	def title: CharSequence
+	def title: CharSequence = {
+		buf.flip
+		buf
+	}
 
 	override def startDocument: Unit = buf.position(0)
 

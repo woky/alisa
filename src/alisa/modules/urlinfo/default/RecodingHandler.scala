@@ -1,55 +1,24 @@
 package alisa.modules.urlinfo.default
 
 import org.xml.sax.Attributes
-import alisa.util.Misc._
-import java.nio.charset.Charset
 import java.nio.CharBuffer
-import alisa.modules.urlinfo.Common
 
-private object RecodingHandler {
-
-	final val DEF_CHARSET = Charset.forName("WINDOWS-1252")
-}
+/*
+ * Observed Validator HTMLParser behaviour when reading a byte stream with unspecified charset:
+ *  - find element in head
+ *  - pass its latin1 decoded content to saxHandler
+ *  - find <meta charset=".."> or <meta http-equiv="Content-Type" content="...">
+ *  - pass correctly decoded content of all previous elements to saxHandler
+ *  - pass meta element to saxHandler
+ */
 
 private final class RecodingHandler(buf: CharBuffer) extends TitleHandler(buf) {
 
-	import RecodingHandler._
 	import TitleHandler._
 	import StreamState._
 
-	private var charsetOpt: Option[Charset] = None
-	private var allAscii = true
-
-	private def findCharset(attrs: Attributes): Option[String] =
-		if (attrs.getLength == 1 && (attrs.getLocalName(0) iceq "charset"))
-			Some(attrs.getValue(0))
-		else if (attrs.getLength == 2) {
-			/*
-			  Try both
-				<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-				<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
-			 */
-			def tryIndex(idx1: Int) =
-				if ((attrs.getLocalName(idx1) iceq "http-equiv")
-						&& (attrs.getValue(idx1) iceq "content-type")) {
-					val idx2 = (idx1 + 1) % 2
-					if (attrs.getLocalName(idx2) iceq "content") {
-						val matcher = Common.CHARSET_REGEX.matcher(attrs.getValue(idx2))
-						if (matcher.find)
-							Some(matcher.group(1))
-						else
-							None
-					} else
-						None
-				} else
-					None
-
-			tryIndex(0) match {
-				case None => tryIndex(1)
-				case r => r
-			}
-		} else
-			None
+	private var charsetFound = false
+	private var allAscii = true // assume all non-Unicode encodings are ASCII compatible
 
 	override def startElement(uri: String, name: String, qName: String, attrs: Attributes): Unit =
 		streamState match {
@@ -57,14 +26,16 @@ private final class RecodingHandler(buf: CharBuffer) extends TitleHandler(buf) {
 			case SS_INIT                      => break()
 			case SS_HTML if "head"  iceq name => streamState = SS_HEAD
 			case SS_HTML                      => break()
-			case SS_HEAD if "title" iceq name => streamState = SS_TITLE
-			case SS_HEAD if charsetOpt.isEmpty && ("meta" iceq name) =>
-				findCharset(attrs) match {
-					case Some(csName) =>
-						charsetOpt = Some(Charset.forName(csName))
-						if (buf.position > 0)
-							break()
-					case _ =>
+			case SS_HEAD if "title" iceq name =>
+				streamState = SS_TITLE
+				buf.position(0)
+			case SS_HEAD if "meta"  iceq name =>
+				val keys = (0 until attrs.getLength map (attrs.getLocalName(_).toLowerCase)).toSet
+				if (keys("charset") || (keys("http-equiv") && keys("content"))) {
+					if (buf.position() == 0)
+						charsetFound = true
+					else
+						break()
 				}
 			case _ =>
 		}
@@ -75,24 +46,10 @@ private final class RecodingHandler(buf: CharBuffer) extends TitleHandler(buf) {
 
 	override def endElement(uri: String, name: String, qName: String): Unit =
 		if (streamState == SS_TITLE && ("title" iceq name)) {
-			if (charsetOpt.isDefined || allAscii)
+			if (allAscii || charsetFound)
 				break()
 			else
 				streamState = SS_HEAD
 		} else if ((streamState == SS_HEAD && ("head" iceq name)) || (streamState != SS_HEAD))
 			break()
-
-	// new buffer size should be <= original size since we're recoding from latin1
-	override def title = {
-		buf.flip
-		if (allAscii) {
-			buf
-		} else {
-			charsetOpt match {
-				case Some(charset) if DEF_CHARSET == charset => buf
-				case Some(charset) => recode(buf, DEF_CHARSET, charset)
-				case _ => tryDetectRecode(buf, DEF_CHARSET)
-			}
-		}
-	}
 }

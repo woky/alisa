@@ -120,30 +120,30 @@ object DefaultInfo extends Logger {
 
 					// directly passed to SAX handler, but may be used twice
 					val titleBuf = CharBuffer.allocate(msgBuf.remaining)
-
-					val (charset, mkHandler) = charsetOpt.fold {
-						val c = RecodingHandler.DEF_CHARSET
-						val h = () => new RecodingHandler(titleBuf): TitleHandler
-						(c, h)
-					} {
-						val h = () => new DumbHandler(titleBuf)
-						(_, h)
-					}
-
 					val parser = new HtmlParser(XmlViolationPolicy.ALLOW)
-					parser.setHeuristics(Heuristics.NONE)
 
-					// we don't want the parser to close input because we may reset() it
-					def source = new InputSource(new FilterReader(new InputStreamReader(
-						inputBuf, charset)) {
-						override def close() {}
-					})
+					val (mkSource, mkHandler) = charsetOpt.fold {
+						parser.setHeuristics(Heuristics.ICU)
+						val s = () => new InputSource(new FilterInputStream(inputBuf) {
+							override def close() {}
+						})
+						val h = () => new RecodingHandler(titleBuf): TitleHandler
+						(s, h)
+					} { charset =>
+						parser.setHeuristics(Heuristics.NONE)
+						val s = () => new InputSource(new FilterReader(
+							new InputStreamReader(inputBuf, charset)) {
+							override def close() {}
+						})
+						val h = () => new DumbHandler(titleBuf)
+						(s, h)
+					}
 
 					def extractTitle(): CharSequence = {
 						val handler = mkHandler()
 						try {
 							parser.setContentHandler(handler)
-							parser.parse(source)
+							parser.parse(mkSource())
 						} catch {
 							case handler.breakEx =>
 						}

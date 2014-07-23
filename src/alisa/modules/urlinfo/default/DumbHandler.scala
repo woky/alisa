@@ -23,9 +23,4 @@ private final class DumbHandler(buf: CharBuffer) extends TitleHandler(buf) {
 				|| (streamState == SS_HEAD && ("head" iceq name))
 				|| (streamState != SS_HEAD))
 			break()
-
-	override def title = {
-		buf.flip
-		buf
-	}
 }
