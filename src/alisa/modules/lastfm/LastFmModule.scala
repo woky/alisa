@@ -1,18 +1,19 @@
 package alisa.modules.lastfm
 
-import alisa.{CmdHandler, Module}
-import java.util.concurrent.{Future, Callable, Executors}
-import alisa.util.{MircColors => MC, DateTime, Logger}
-import alisa.util.Misc._
-import java.net.{HttpURLConnection, URL}
-import javax.xml.parsers.DocumentBuilderFactory
 import java.io._
-import alisa.IrcCommandEvent
+import java.net.{HttpURLConnection, URL}
+import java.nio.file.{Files, NoSuchFileException, Paths}
+import java.time.{LocalDateTime, ZoneOffset}
+import java.util.concurrent.{Callable, Executors, Future}
+import javax.xml.parsers.DocumentBuilderFactory
+
+import alisa.util.Misc._
 import alisa.util.Xml._
+import alisa.util.{DateTime, Logger, MircColors => MC}
+import alisa.{CmdHandler, IrcCommandEvent, Module}
 import resource._
-import java.nio.file.{NoSuchFileException, Files, Paths}
+
 import scala.util.control.ControlThrowable
-import java.time.{ZoneOffset, LocalDateTime}
 
 private object LastFmModule {
 
@@ -117,8 +118,8 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 				case Some(time) =>
 					val dt1 = LocalDateTime.ofEpochSecond(time, 0, ZoneOffset.UTC)
 					val dt2 = LocalDateTime.now(ZoneOffset.UTC)
-					buf ++= MC.LIGHT_BLUE ++= "lp" += MC.CLEAR ++= " ("
-					buf ++= DateTime.formatPastDateTime(dt1, dt2) += ')'
+					buf ++= MC.LIGHT_BLUE ++= "lp" += MC.CLEAR += ' '
+					buf ++= DateTime.formatPastDateTime(dt1, dt2)
 				case _ => buf ++= MC.RED ++= "np" += MC.CLEAR
 			}
 
@@ -126,7 +127,7 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			buf ++= " by " ++= MC(MC.PINK) ++= t.artist += MC.CLEAR
 			t.album.foreach(buf ++= " on " ++= MC(MC.LIGHT_CYAN) ++= _ += MC.CLEAR)
 
-			if (!t.tags.isEmpty) {
+			if (t.tags.nonEmpty) {
 				val it = t.tags.iterator
 				buf ++= " ("
 				do {
@@ -151,7 +152,7 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 		try {
 			managed(new BufferedInputStream(conn.getInputStream)) acquireAndGet { input =>
 				val doc = DocumentBuilderFactory.newInstance.newDocumentBuilder.parse(input)
-				if (!evalXpathTextOpt(STATUS_XP, doc).exists(_ == "ok")) {
+				if (!evalXpathTextOpt(STATUS_XP, doc).contains("ok")) {
 					logWarn("Last.fm request was not OK. URL: " + url + ", reply:\n" + dumpXml(doc))
 					fail()
 				}
