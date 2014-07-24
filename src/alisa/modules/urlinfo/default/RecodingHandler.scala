@@ -30,8 +30,11 @@ private final class RecodingHandler(buf: CharBuffer) extends TitleHandler(buf) {
 				streamState = SS_TITLE
 				buf.position(0)
 			case SS_HEAD if "meta"  iceq name =>
-				val keys = (0 until attrs.getLength map (attrs.getLocalName(_).toLowerCase)).toSet
-				if (keys("charset") || (keys("http-equiv") && keys("content"))) {
+				val name2idx = (0 until attrs.getLength map { idx =>
+					attrs.getLocalName(idx).toLowerCase -> idx
+				}).toMap
+				if (name2idx.contains("charset") || name2idx.get("http-equiv").exists(
+						attrs.getValue(_).equalsIgnoreCase("content-type"))) {
 					if (buf.position() == 0)
 						charsetFound = true
 					else
