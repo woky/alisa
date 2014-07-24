@@ -60,7 +60,6 @@ You need JRE8.
 		chmod 700 /var/lib/alisa
 		cp target/alisa-VERSION.jar /usr/local/share/alisa.jar
 		cp alisa.conf /etc
-		chgrp alisa /etc/alisa.conf
 
 		cp alisa.service /etc/systemd/system
 		systemctl --system daemon-reload
@@ -76,7 +75,6 @@ You need JRE8.
 		chmod 700 /var/lib/alisa
 		cp target/alisa-VERSION.jar /usr/local/share/alisa.jar
 		cp alisa.conf /etc
-		chgrp alisa /etc/alisa.conf
 
 		cp init /etc/init.d/alisa
 
