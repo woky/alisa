@@ -50,7 +50,9 @@ You need JRE8.
 
 		java -jar target/alisa-VERSION.jar -d
 
-* Run as daemon via included systemd service file (do following as root)
+* Run as daemon via systemd service file
+
+	Do following as root:
 
 		useradd -rU alisa
 		mkdir /var/lib/alisa
@@ -58,9 +60,34 @@ You need JRE8.
 		chmod 700 /var/lib/alisa
 		cp target/alisa-VERSION.jar /usr/local/share/alisa.jar
 		cp alisa.conf /etc
+
 		cp alisa.service /etc/systemd/system
 		systemctl --system daemon-reload
-		systemctl restart alisa.service
+		systemctl start alisa.service
+
+* Run as daemon via LSB init script (Debian example)
+
+	You also need bash and start-stop-daemon. Do following as root:
+
+		useradd -rU alisa
+		mkdir /var/lib/alisa
+		chown alisa:alisa /var/lib/alisa
+		chmod 700 /var/lib/alisa
+		cp target/alisa-VERSION.jar /usr/local/share/alisa.jar
+		cp alisa.conf /etc
+
+		cp init /etc/init.d/alisa
+
+		# on Debian
+		update-rc.d alisa defaults
+
+		# on CentOS (untested)
+		#chkconfig --add alisa
+
+		# on distro with lsb-core (untested)
+		#/usr/lib/lsb/install_initd /etc/init.d/alisa
+
+		/etc/init.d/alisa start
 
 TODO
 ----
