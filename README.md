@@ -68,7 +68,7 @@ You need JRE8.
 
 * Run as daemon via LSB init script (Debian example)
 
-	You also need bash and start-stop-daemon. Do following as root:
+	You also need bash, logger and start-stop-daemon. Do following as root:
 
 		useradd -rU alisa
 		mkdir /var/lib/alisa
