@@ -1,0 +1,72 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          alisa
+# Required-Start:    $local_fs $remote_fs $network $syslog $time
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Default-Start:     2 3 4 5                                                                                                                                  
+# Default-Stop:      0 1 6
+# Short-Description: Alisa
+# Description:       Alisa - Cute and kindhearted IRC bot
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+NAME=alisa
+DESC="Alisa - Cute and kindhearted IRC bot"
+JAR=/usr/local/share/$NAME.jar
+CONF=/etc/${NAME}.conf
+USER=$NAME
+HOME=/var/lib/$NAME
+PIDFILE=/var/run/$NAME.pid
+
+[ -r /etc/default/$NAME ] && . /etc/default/$NAME                                                                                                             
+
+. /lib/lsb/init-functions
+
+if [ x"$JAVA_HOME" != x ]; then
+	export PATH="$JAVA_HOME/bin:$PATH"
+fi
+if ! which java >/dev/null; then
+	log_failure_msg "no java in PATH"
+	exit 1
+fi
+
+do_start()
+{
+	start-stop-daemon -S -p $PIDFILE -u $USER -c $USER -d $HOME -b -m \
+		-a /bin/bash -- -c \
+		"exec java -jar $JAR $CONF > >(logger -t $NAME) 2>&1"
+}
+
+do_stop()
+{
+	start-stop-daemon -K -o -p $PIDFILE -u $USER -R 5
+	ret=$?
+	if [ $ret -eq 0 ] && [ -f $PIDFILE ]; then
+		rm $PIDFILE
+	fi
+	return $ret
+}
+
+do_status()
+{
+	start-stop-daemon -T -p $PIDFILE -u $USER
+	ret=$?
+	case $ret in
+		0)	log_success_msg running ;;
+		1|3)	log_success_msg "not running" ;;
+		*)	log_failure_msg "failed to determine status" ;;
+	esac
+	return $ret
+}
+
+case "$1" in                                                                                                                                                  
+	start)		do_start ;;
+	stop)		do_stop ;;
+	restart)	do_stop && do_start ;;
+	status)		do_status ;;
+	*)
+		log_failure_msg "unsupported action: $1"
+		false
+		;;
+esac
+
