@@ -25,13 +25,13 @@ PIDFILE=/var/run/$NAME.pid
 if [ x"$JAVA_HOME" != x ]; then
 	export PATH="$JAVA_HOME/bin:$PATH"
 fi
-if ! which java >/dev/null; then
-	log_failure_msg "no java in PATH"
-	exit 1
-fi
 
 do_start()
 {
+	if ! which java >/dev/null; then
+		log_failure_msg "no java in PATH"
+		return 1
+	fi
 	start-stop-daemon -S -p $PIDFILE -u $USER -c $USER -d $HOME -b -m \
 		-a /bin/bash -- -c \
 		"exec java -jar $JAR $CONF > >(logger -t $NAME) 2>&1"
