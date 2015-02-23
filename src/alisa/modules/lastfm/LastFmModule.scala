@@ -123,7 +123,7 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 				case _ => buf ++= MC.RED ++= "np" += MC.CLEAR
 			}
 
-			buf += ' ' ++= MC(MC.LIGHT_GREEN) ++= t.name += MC.CLEAR
+			buf ++= ": " ++= MC(MC.LIGHT_GREEN) ++= t.name += MC.CLEAR
 			buf ++= " by " ++= MC(MC.PINK) ++= t.artist += MC.CLEAR
 			t.album.foreach(buf ++= " on " ++= MC(MC.LIGHT_CYAN) ++= _ += MC.CLEAR)
 
