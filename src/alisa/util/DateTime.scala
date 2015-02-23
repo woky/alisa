@@ -28,7 +28,7 @@ object DateTime {
 					case _ => ago(duration.toMinutes.toInt % 60, "min")
 				}
 			} else {
-				"now"
+				ago(duration.getSeconds.toInt, "sec")
 			}
 		}
 	}
