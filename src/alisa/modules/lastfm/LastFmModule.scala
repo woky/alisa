@@ -3,7 +3,7 @@ package alisa.modules.lastfm
 import java.io._
 import java.net.{HttpURLConnection, URL}
 import java.nio.file.{Files, NoSuchFileException, Paths}
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.{Duration, LocalDateTime, ZoneOffset}
 import java.util.concurrent.{Callable, Executors, Future}
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -116,10 +116,12 @@ final class LastFmModule(apiKey: String) extends Module with CmdHandler with Log
 			buf += ' ' += MC.BOLD += MC.COLOR_CODE
 			t.lastTime match {
 				case Some(time) =>
+					buf ++= MC.LIGHT_BLUE ++= "lp" += MC.CLEAR
 					val dt1 = LocalDateTime.ofEpochSecond(time, 0, ZoneOffset.UTC)
 					val dt2 = LocalDateTime.now(ZoneOffset.UTC)
-					buf ++= MC.LIGHT_BLUE ++= "lp" += MC.CLEAR += ' '
-					buf ++= DateTime.formatPastDateTime(dt1, dt2)
+					val duration = Duration.between(dt1, dt2)
+					if (duration.toMinutes > 10)
+						buf += ' ' ++= DateTime.formatPastDateTime(dt1, dt2)
 				case _ => buf ++= MC.RED ++= "np" += MC.CLEAR
 			}
 
