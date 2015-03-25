@@ -132,9 +132,10 @@ object SoundCloud extends UrlHandler with Logger {
 		val genre = doc.getString("genre", null)
 
 		buf ++= typ ++= ": " ++= title
-		buf ++= " by " ++= user
+		buf ++= " | by " ++= user
+		buf ++= " | " ++= formatDuration(durationMsec / 1000, zero = "live?")
 		if (releaseYear > 0) {
-			buf ++= " in "
+			buf ++= " | "
 			if (releaseMonth > 0) {
 				val monthStr = Month.of(releaseMonth).getDisplayName(TextStyle.SHORT,
 					Locale.getDefault)
@@ -142,7 +143,6 @@ object SoundCloud extends UrlHandler with Logger {
 			}
 			buf ++= releaseYear
 		}
-		buf ++= " | " ++= formatDuration(durationMsec / 1000, zero = "live?")
 		if (has(genre))
 			buf ++= " | " ++= genre
 	}
