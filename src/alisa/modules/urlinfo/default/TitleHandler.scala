@@ -15,7 +15,7 @@ private object TitleHandler {
 		val SS_INIT, SS_HTML, SS_HEAD, SS_TITLE = Value
 	}
 
-	private object TitleState extends Enumeration {
+	object TitleState extends Enumeration {
 		type TitleState = Value
 		val TS_INIT, TS_TEXT, TS_SPACE = Value
 	}
@@ -34,7 +34,7 @@ private abstract class TitleHandler(buf: CharBuffer) extends DefaultHandler {
 	final val breakEx = new IOException with ControlThrowable
 
 	protected final var streamState = SS_INIT
-	private final var titleState = TS_INIT
+	protected final var titleState = TS_INIT
 
 	protected final def break(): Nothing = throw breakEx
 	protected def checkChar(c: Char) {}

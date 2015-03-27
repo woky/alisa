@@ -51,8 +51,10 @@ private final class RecodingHandler(buf: CharBuffer) extends TitleHandler(buf) {
 		if (streamState == SS_TITLE && ("title" iceq name)) {
 			if (allAscii || charsetFound)
 				break()
-			else
+			else {
 				streamState = SS_HEAD
+				titleState = TitleState.TS_INIT
+			}
 		} else if ((streamState == SS_HEAD && ("head" iceq name)) || (streamState != SS_HEAD))
 			break()
 }
