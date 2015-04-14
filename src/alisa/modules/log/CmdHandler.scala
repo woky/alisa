@@ -5,12 +5,14 @@ import org.jibble.pircbot.PircBot
 import java.net.{InetSocketAddress, URLEncoder}
 import alisa.util.Misc._
 
-final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: String)
+final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: String,
+                       whitelist: Iterable[UserMatcher])
 		extends OneCmdHandler("log") {
 
-	def this(allowedIds: AllowedIds, lucene: LuceneService, addr: InetSocketAddress) =
+	def this(allowedIds: AllowedIds, lucene: LuceneService, addr: InetSocketAddress,
+	         whitelist: Iterable[UserMatcher]) =
 		this(allowedIds, lucene,
-			 s"http://${addr.getAddress.getHostAddress}:${addr.getPort.toString}/")
+			 s"http://${addr.getAddress.getHostAddress}:${addr.getPort.toString}/", whitelist)
 
 	import SearchCommon._
 
@@ -24,7 +26,7 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 			bot.sendMessage(channel, s"$sender, usage: $command { link [<query>] | flush }")
 		}
 
-		if (IrcChannelUser.isAtLeastPrefix('+', event.user.modes)) {
+		if (authorized(event)) {
 			val args = parseArgs(event.args.decoded)
 			args match {
 				case subcmd :: subargs => subcmd match {
@@ -41,6 +43,10 @@ final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: S
 			bot.sendMessage(sender, s"You must have at least voice in $channel to use this command.")
 		}
 	}
+
+	private def authorized(event: IrcCommandEvent): Boolean =
+		whitelist.exists(_(event.network.name, event.channel, event.user.user)) ||
+				IrcChannelUser.isAtLeastPrefix('+', event.user.modes)
 
 	def link(network: String, channel: String, sender: String, bot: PircBot, query: String) {
 		val id = allowedIds.add(LuceneChannel(network, channel))

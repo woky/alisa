@@ -4,6 +4,8 @@ import org.apache.lucene.store.FSDirectory
 import java.io.File
 import alisa.ModuleProvider
 import java.net.{Socket, InetSocketAddress}
+import java.util.{List => JList, Collections}
+import scala.collection.JavaConversions._
 
 object LogProvider {
 
@@ -22,7 +24,12 @@ final class LogProvider extends ModuleProvider {
 		val idxDirStr = params.getOrElse("indexDir", "index").asInstanceOf[String]
 		val idxDir = FSDirectory.open(new File(idxDirStr))
 		// TODO use params
-		new LogModule(idxDir, new InetSocketAddress(getLocalPublicAddr, DEF_HTTP_PORT), DEF_ID_TTL)
+		val whitelist = params
+				.getOrElse("link_whitelist", Collections.emptyList())
+				.asInstanceOf[JList[JList[String]]]
+				.map(jl => UserMatcher(jl.toList))
+		new LogModule(idxDir, new InetSocketAddress(getLocalPublicAddr, DEF_HTTP_PORT),
+			DEF_ID_TTL, whitelist)
 	}
 
 	def getLocalPublicAddr = {

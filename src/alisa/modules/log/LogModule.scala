@@ -5,7 +5,8 @@ import java.net.InetSocketAddress
 import alisa._
 import alisa.util.Logger
 
-final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: Int)
+final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: Int,
+                      whitelist: Iterable[UserMatcher])
 		extends Module with IrcEventHandler with Logger {
 
 	private val allowedIds = new AllowedIds(idTtl, 16)
@@ -40,7 +41,7 @@ final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: I
 
 	def handles = Set(classOf[IrcMessageEvent], classOf[IrcCommandEvent])
 
-	private val cmdHandler = new CmdHandler(allowedIds, lucene, httpAddr)
+	private val cmdHandler = new CmdHandler(allowedIds, lucene, httpAddr, whitelist)
 
 	def handle = {
 		case cmd: IrcCommandEvent => cmdHandler.handle(cmd)
