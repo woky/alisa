@@ -5,3 +5,4 @@ alisa.modules.urlinfo.UrlInfoProvider
 alisa.modules.UnknownCmd
 alisa.modules.lastfm.LastFmProvider
 alisa.modules.Help
+alisa.modules.GoogleSearchProvider

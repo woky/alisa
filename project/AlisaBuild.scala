@@ -26,7 +26,7 @@ object AlisaBuild extends Build {
 		mkJavaDeps("io.netty", v, mods.map("netty-" + _): _*)
 	}
 
-	val deps = Seq(
+	val deps = (Seq(
 		"com.typesafe" % "config" % "1.2.1",
 		"pircbot" % "pircbot" % "1.5.0",
 		"nu.validator.htmlparser" % "htmlparser" % "1.4",
@@ -36,9 +36,10 @@ object AlisaBuild extends Build {
 		"org.apache.lucene" % "lucene-analyzers-common" % "4.7.2",
 		"org.apache.lucene" % "lucene-queryparser" % "4.7.2",
 		"com.google.guava" % "guava" % "17.0",
-		"com.google.code.findbugs" % "jsr305" % "2.0.1" % "provided",
 		"com.jsuereth" %% "scala-arm" % "1.4",
 		"org.glassfish" % "javax.json" % "1.0.4",
+		"com.google.api-client" % "google-api-client" % "1.19.1",
+		"com.google.apis" % "google-api-services-customsearch" % "v1-rev46-1.20.0",
 		/*
 		"org.scala-lang" % "scala-reflect" % scalaVer,
 		"net.java.dev.jna" % "jna" % "3.4.0",
@@ -52,7 +53,9 @@ object AlisaBuild extends Build {
 		"org.scalamock" %% "scalamock-scalatest-support" % "3.1.1" % "test",
 		"org.powermock" % "powermock-module-junit4" % "1.5" % "test",
 		"org.powermock" % "powermock-api-easymock"  % "1.5" % "test"
-	) ++ nettyDeps
+	) ++ nettyDeps).map(_.
+			exclude("com.google.guava", "guava-jdk5")
+			exclude("com.google.code.findbugs", "jsr305"))
 
 	lazy val proj = Project(
 		"alisa",
