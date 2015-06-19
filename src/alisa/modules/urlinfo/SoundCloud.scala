@@ -148,7 +148,7 @@ object SoundCloud extends UrlHandler with Logger {
 	}
 
 	private def addTrackInfo(buf: MessageBuffer, doc: JsonObject) {
-		addTrackOrPlaylistInfo(buf, "Track", doc)
+		addTrackOrPlaylistInfo(buf, "Song", doc)
 	}
 
 	private def addPlaylistInfo(buf: MessageBuffer, doc: JsonObject) {
