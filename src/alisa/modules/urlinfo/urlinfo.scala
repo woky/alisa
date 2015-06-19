@@ -83,7 +83,7 @@ object Common extends Logger {
 
 				def checkServerTrusted(p1: Array[X509Certificate], p2: String) {}
 
-				def getAcceptedIssuers = null
+				def getAcceptedIssuers = Array()
 			}
 		), null)
 		sslCtx
