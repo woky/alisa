@@ -2,6 +2,7 @@ package alisa.modules
 
 import java.net.URLEncoder
 
+import alisa.util.Logger
 import alisa.{ModuleProvider, CmdHandler, IrcCommandEvent, Module}
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -19,9 +20,9 @@ final class GoogleSearchProvider extends ModuleProvider {
 		params("api_key").asInstanceOf[String], params("cx").asInstanceOf[String])
 }
 
-final class GoogleSearchModule(apiKey: String, cx: String) extends Module with CmdHandler {
+final class GoogleSearchModule(apiKey: String, cx: String) extends Module with Logger with CmdHandler {
 
-	override def handles(cmd: String) = cmd == "g"
+	override def handles(cmd: String) = cmd == "g" || cmd == "google"
 	override def handler = Some(this)
 
 	private val httpTransport = GoogleNetHttpTransport.newTrustedTransport()
@@ -40,25 +41,31 @@ final class GoogleSearchModule(apiKey: String, cx: String) extends Module with C
 		Option(items).map(_.map(i => (i.getTitle, i.getLink)))
 	}
 
-	override def handleCommand(event: IrcCommandEvent): Unit = {
-		val q = Option(event.args.text).filter(!_.isEmpty).getOrElse(Random.nextLong().toString)
+	private def handleSearch(ev: IrcCommandEvent, q: String): Unit = {
 		val searchUrl = "https://encrypted.google.com/search?q=" + URLEncoder.encode(q, "utf-8")
-		event.bot.sendMessage(event.channel, searchUrl)
+		ev.bot.sendMessage(ev.channel, searchUrl)
 		Try(search(q)) match {
 			case Success(Some(results)) =>
 				for (((title, link), idx) <- results.zipWithIndex) {
-					event.bot.sendMessage(event.channel, s"${idx + 1}. $title")
-					event.bot.sendMessage(event.channel, s"   $link")
+					ev.bot.sendMessage(ev.channel, s"${idx + 1}. $title")
+					ev.bot.sendMessage(ev.channel, s"   $link")
 				}
-			case Success(_) => event.bot.sendMessage(event.channel, "No results")
+			case Success(_) => ev.bot.sendMessage(ev.channel, "No results")
 			case Failure(ex) =>
 				val reason = ex match {
 					case ex: GoogleJsonResponseException => ex.getStatusMessage +
 							Option(ex.getDetails).map(" " + _.getMessage).getOrElse("")
-					case _ => ex.getMessage
+					case _ => ex.toString
 				}
-				ex.printStackTrace()
-				event.bot.sendMessage(event.channel, s"ERROR while googling: $reason")
+				logEx(ex)
+				ev.bot.sendMessage(ev.channel, s"ERROR: $reason")
+		}
+	}
+
+	override def handleCommand(ev: IrcCommandEvent): Unit = {
+		Option(ev.args.text).filter(!_.isEmpty) match {
+			case Some(q) => handleSearch(ev, q)
+			case _ => ev.bot.sendMessage(ev.channel, s"${ev.user.nick}, Usage: g QUERY")
 		}
 	}
 }
