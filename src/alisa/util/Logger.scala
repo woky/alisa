@@ -16,6 +16,8 @@ trait Logger {
 
 	protected final def logError(msg: => String, ex: Throwable = null) = _log(SEVERE, msg, ex)
 
+	protected final def logEx(ex: Throwable) = logError("", ex)
+
 	private def _log(level: Level, msg: => String, ex: Throwable = null): Unit =
 		if (logger.isLoggable(level)) // needs to be checked before msg is evaluated
 			logger.log(level, msg, ex)
