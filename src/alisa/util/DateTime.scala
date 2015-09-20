@@ -6,7 +6,7 @@ import java.util.Locale
 
 object DateTime {
 
-	def formatPastDateTime(past: LocalDateTime, now: LocalDateTime): String = {
+	def formatPastDateTime(past: LocalDateTime, now: LocalDateTime = LocalDateTime.now()): String = {
 		require(now.isAfter(past))
 		def ago(n: Int, u: String) = n.toString + " " + u + (if (n > 1) "s " else " ") + "ago"
 		val period = Period.between(past.toLocalDate, now.toLocalDate)

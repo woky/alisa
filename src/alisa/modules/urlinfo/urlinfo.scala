@@ -72,7 +72,8 @@ object Common extends Logger {
 
 	final val HANDLERS: List[UrlHandler] = List(
 		YouTube,
-		SoundCloud
+		SoundCloud,
+		GitHub
 	)
 
 	private[this] val sslCtx = {
