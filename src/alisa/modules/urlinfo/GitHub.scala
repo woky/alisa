@@ -31,7 +31,7 @@ object GitHub extends UrlHandler with Logger {
 	.updated_at
 	"""
 
-	final val USER_REPO_REGEX = "^/([^/]+/[^/]+)(?:/.*)?$".r
+	final val USER_REPO_REGEX = "^/([^/]+/[^/]+)/?$".r
 
 	override def fill(buf: CharBuffer, config: Config, url: URL): Boolean = {
 		if (url.getHost.endsWith("github.com")) {
