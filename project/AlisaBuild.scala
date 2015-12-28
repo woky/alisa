@@ -3,7 +3,7 @@ import sbt._
 
 object AlisaBuild extends Build {
 
-	val scalaVer = "2.11.6"
+	val scalaVer = "2.12.0-M3"
 
 	val projectInfo = Seq(
 		name := "alisa",
@@ -36,7 +36,7 @@ object AlisaBuild extends Build {
 		"org.apache.lucene" % "lucene-analyzers-common" % "4.7.2",
 		"org.apache.lucene" % "lucene-queryparser" % "4.7.2",
 		"com.google.guava" % "guava" % "17.0",
-		"com.jsuereth" %% "scala-arm" % "1.4",
+		"com.jsuereth" % "scala-arm_2.11" % "1.4",
 		"org.glassfish" % "javax.json" % "1.0.4",
 		"com.google.api-client" % "google-api-client" % "1.19.1",
 		"com.google.apis" % "google-api-services-customsearch" % "v1-rev46-1.20.0",
@@ -50,7 +50,7 @@ object AlisaBuild extends Build {
 		 * Test dependencies
 		 */
 		"junit" % "junit" % "4.11" % "test",
-		"org.scalamock" %% "scalamock-scalatest-support" % "3.1.1" % "test",
+		//"org.scalamock" %% "scalamock-scalatest-support" % "3.1.1" % "test",
 		"org.powermock" % "powermock-module-junit4" % "1.5" % "test",
 		"org.powermock" % "powermock-api-easymock"  % "1.5" % "test"
 	) ++ nettyDeps).map(_.
