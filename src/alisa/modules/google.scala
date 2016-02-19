@@ -47,8 +47,8 @@ final class GoogleSearchModule(apiKey: String, cx: String) extends Module with L
 		Try(search(q)) match {
 			case Success(Some(results)) =>
 				for (((title, link), idx) <- results.zipWithIndex) {
-					ev.bot.sendMessage(ev.channel, s"${idx + 1}. $title")
-					ev.bot.sendMessage(ev.channel, s"   $link")
+					ev.bot.sendMessage(ev.channel, s"${idx + 1}. $link")
+					ev.bot.sendMessage(ev.channel, s"   $title")
 				}
 			case Success(_) => ev.bot.sendMessage(ev.channel, "No results")
 			case Failure(ex) =>
