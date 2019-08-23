@@ -30,3 +30,13 @@ libraryDependencies ++= Seq(
   "powermock-api-easymock",
   "powermock-module-junit4",
 ).map("org.powermock" % _ % "1.5" % "test")
+
+Compile / scalaSource       := baseDirectory.value / "src"
+Compile / javaSource        := baseDirectory.value / "src"
+Compile / resourceDirectory := baseDirectory.value / "src"
+Test    / scalaSource       := baseDirectory.value / "test"
+Test    / javaSource        := baseDirectory.value / "test"
+Test    / resourceDirectory := baseDirectory.value / "test"
+
+exportJars := true
+Compile / packageBin / mainClass := Some("alisa.Alisa")
