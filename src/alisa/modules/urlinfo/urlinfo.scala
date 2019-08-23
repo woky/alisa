@@ -11,7 +11,7 @@ import alisa._
 import annotation.tailrec
 import alisa.util.{Logger, MessageBuffer}
 import MessageBuffer._
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.{Success, Failure, Try}
 import alisa.modules.urlinfo.default.DefaultInfo
 
@@ -40,7 +40,7 @@ final class UrlInfoProvider extends ModuleProvider {
 				.getOrElse(DEF_SO_TIMEOUT)
 		val hostBlacklist = params
 				.get("host_blacklist")
-				.map(_.asInstanceOf[java.util.List[String]].toList)
+				.map(_.asInstanceOf[java.util.List[String]].asScala.toList)
 				.getOrElse(Nil)
 				.map(Pattern.compile) // TODO user-friendly PatternSyntaxException
 		val optYtApiKey = params

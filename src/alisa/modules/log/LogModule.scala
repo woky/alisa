@@ -41,7 +41,7 @@ final class LogModule(indexDir: Directory, httpAddr: InetSocketAddress, idTtl: I
 
 	def handles = Set(classOf[IrcMessageEvent], classOf[IrcCommandEvent])
 
-	private val cmdHandler = new CmdHandler(allowedIds, lucene, httpAddr, whitelist)
+	private val cmdHandler = new LogCmdHandler(allowedIds, lucene, httpAddr, whitelist)
 
 	def handle = {
 		case cmd: IrcCommandEvent => cmdHandler.handle(cmd)

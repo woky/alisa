@@ -3,7 +3,7 @@ package alisa
 import com.typesafe.config._
 import ConfigValueType._
 import java.util.regex.Pattern
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import java.io.File
 import alisa.util.Logger
 
@@ -16,8 +16,8 @@ object ConfigParser extends Logger {
 	def parseFile(file: File): AlisaConfig = build(ConfigFactory.parseFile(file))
 
 	def build(conf: Config): AlisaConfig = {
-		val networks = conf.getList("networks").toList.map(mkNetworkConfig)
-		val modules = mkModuleConfigs(conf.getList("modules").toList, Nil)
+		val networks = conf.getList("networks").asScala.map(mkNetworkConfig).toList
+		val modules = mkModuleConfigs(conf.getList("modules").asScala.toList, Nil)
 		val verbose =
 			if (conf.hasPath("verbose"))
 				conf.getBoolean("verbose")
@@ -31,7 +31,7 @@ object ConfigParser extends Logger {
 		configObjList match {
 			case name :: params :: xs if STRING == name.valueType() &&
 					OBJECT == params.valueType() =>
-				val paramMap = params.asInstanceOf[ConfigObject].toConfig.root.unwrapped.toMap
+				val paramMap = params.asInstanceOf[ConfigObject].toConfig.root.unwrapped.asScala.toMap
 				val modConf = ModuleConfig(name.unwrapped().asInstanceOf[String], paramMap)
 				mkModuleConfigs(xs, modConf :: result)
 			case name :: xs if STRING == name.valueType() =>
@@ -53,8 +53,8 @@ object ConfigParser extends Logger {
 					conf.getString("finger")
 				else
 					nick
-			val servers = conf.getList("servers").toList.map(mkServerConfig)
-			val channels = conf.getList("channels").toList.map(mkChannelConfig)
+			val servers = conf.getList("servers").asScala.toList.map(mkServerConfig)
+			val channels = conf.getList("channels").asScala.toList.map(mkChannelConfig)
 			val delay =
 				if (conf.hasPath("delay"))
 					conf.getInt("delay")

@@ -1,6 +1,6 @@
 package alisa
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import sun.misc.{SignalHandler, Signal}
 import joptsimple.OptionParser
 import java.util.logging.{Logger => JDKLogger, ConsoleHandler, LogManager, Level}
@@ -31,8 +31,8 @@ object Alisa extends Logger {
 		val newArgs = optSet.nonOptionArguments
 
 		val config =
-			if (newArgs.length > 0)
-				ConfigParser.parseFile(newArgs(0).toString)
+			if (!newArgs.isEmpty)
+				ConfigParser.parseFile(newArgs.get(0).toString)
 			else
 				ConfigParser.parseFile(TEST_CONFIG)
 

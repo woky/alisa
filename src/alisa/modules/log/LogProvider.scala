@@ -5,7 +5,7 @@ import java.io.File
 import alisa.ModuleProvider
 import java.net.{Socket, InetSocketAddress}
 import java.util.{List => JList, Collections}
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 object LogProvider {
 
@@ -27,7 +27,8 @@ final class LogProvider extends ModuleProvider {
 		val whitelist = params
 				.getOrElse("link_whitelist", Collections.emptyList())
 				.asInstanceOf[JList[JList[String]]]
-				.map(jl => UserMatcher(jl.toList))
+  			.asScala
+				.map(jl => UserMatcher(jl.asScala.toList))
 		new LogModule(idxDir, new InetSocketAddress(getLocalPublicAddr, DEF_HTTP_PORT),
 			DEF_ID_TTL, whitelist)
 	}

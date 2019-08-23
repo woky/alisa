@@ -9,7 +9,7 @@ import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.customsearch.Customsearch
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.{Random, Failure, Success, Try}
 
 final class GoogleSearchProvider extends ModuleProvider {
@@ -38,7 +38,7 @@ final class GoogleSearchModule(apiKey: String, cx: String) extends Module with L
 				.setFields("items(link,title)")
 				.setNum(3l)
 				.execute().getItems
-		Option(items).map(_.map(i => (i.getTitle, i.getLink)))
+		Option(items).map(_.asScala.map(i => (i.getTitle, i.getLink)))
 	}
 
 	private def handleSearch(ev: IrcCommandEvent, q: String): Unit = {

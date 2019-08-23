@@ -25,7 +25,7 @@ final class ByteBufferInputStream(buf: ByteBuffer) extends InputStream {
 	override def skip(n: Long) = synchronized {
 		val toSkip = Math.min(n.toInt, buf.remaining)
 		if (toSkip > 0)
-			buf.position(buf.position + toSkip)
+			buf.position(buf.position() + toSkip)
 		toSkip
 	}
 

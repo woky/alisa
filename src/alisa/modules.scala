@@ -1,7 +1,7 @@
 package alisa
 
 import java.util.ServiceLoader
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 abstract class Module {
 
@@ -21,6 +21,7 @@ final class ModuleFactory {
 
 	private val providerMap = ServiceLoader
 			.load(classOf[ModuleProvider])
+			.asScala
 			.map(p => p.name.toLowerCase -> p)
 			.toMap
 

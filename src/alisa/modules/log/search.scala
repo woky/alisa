@@ -10,7 +10,7 @@ import io.netty.handler.codec.http.HttpVersion._
 import alisa.util.Logger
 import io.netty.buffer.{ByteBuf, Unpooled}
 import io.netty.util.CharsetUtil._
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import io.netty.handler.stream.{ChunkedWriteHandler, ChunkedInput}
 import org.apache.lucene.queryparser.classic.ParseException
 import scala.Some
@@ -117,8 +117,8 @@ private final class SearchHandler(allowedIds: AllowedIds, lucene: LuceneService)
 				return
 		}
 
-		val params = queryDec.parameters.map({
-			case (k, v) => k -> v(0)
+		val params = queryDec.parameters.asScala.map({
+			case (k, v) => k -> v.get(0)
 		})
 		val query = params.getOrElse(KEY_QUERY, DEF_QUERY)
 		val limit = params.get(KEY_LIMIT).map(_.toInt).getOrElse(DEF_LIMIT)

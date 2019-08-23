@@ -9,7 +9,7 @@ import java.nio.charset.spi.CharsetProvider
 import alisa.util.{Misc, Logger}
 import Misc._
 import IrcEventHandlers._
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import java.util.{Map => JMap, HashMap => JHashMap}
 import java.net.UnknownHostException
 
@@ -68,13 +68,13 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 		userMap.get(nick) match {
 			case null =>
 				val chanModeMap = new JHashMap[String, Set[Char]]
-				chanModeMap(channel) = change(Set.empty)
-				userMap(nick) = UserChanModes(chanModeMap)
+				chanModeMap.put(channel, change(Set.empty))
+				userMap.put(nick, UserChanModes(chanModeMap))
 			case UserChanModes(chanModeMap) =>
-				chanModeMap(channel) = change(chanModeMap.getOrElse(channel, Set.empty))
+				chanModeMap.put(channel, change(chanModeMap.getOrDefault(channel, Set.empty)))
 			case UserObjects(user, chanUserMap) =>
 				val oldModes = Option(chanUserMap.get(channel)).map(_.modes).getOrElse(Set.empty)
-				chanUserMap(channel) = IrcChannelUser(user, change(oldModes))
+				chanUserMap.put(channel, IrcChannelUser(user, change(oldModes)))
 		}
 	}
 
@@ -97,21 +97,24 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 							val chanUser = IrcChannelUser(user, Set.empty)
 							val chanUserMap = new JHashMap[String, IrcChannelUser](1)
 							chanUserMap.put(channel, chanUser)
-							userMap(nick) = UserObjects(user, chanUserMap)
+							userMap.put(nick, UserObjects(user, chanUserMap))
 							chanUser
 						case UserChanModes(chanModeMap) =>
-							val chanUserMap = chanModeMap.map {
-								case (c, m) => c -> IrcChannelUser(user, m)
+							val chanUserMap = new JHashMap[String, IrcChannelUser]
+							chanModeMap.entrySet().forEach { entry =>
+								chanUserMap.put(entry.getKey, IrcChannelUser(user, entry.getValue))
 							}
-							userMap(nick) = UserObjects(user, chanUserMap)
-							chanUserMap.getOrElseUpdate(channel, IrcChannelUser(user, Set.empty))
+							userMap.put(nick, UserObjects(user, chanUserMap))
+							if (!chanUserMap.containsKey(channel))
+								chanUserMap.put(channel, IrcChannelUser(user, Set.empty))
+							chanUserMap.get(channel)
 					}
 				chanUser
 			case UserObjects(user, chanUserMap) =>
 				chanUserMap.get(channel) match {
 					case null =>
 						val newChanUser = new IrcChannelUser(user, Set.empty)
-						chanUserMap(channel) = newChanUser
+						chanUserMap.put(channel, newChanUser)
 						newChanUser
 					case chanUser => chanUser
 				}
@@ -123,10 +126,11 @@ final class AlisaNetwork(networkConf: NetworkConfig,
 				val user = IrcUser(nick, login, hostname)
 				if (tmpCu != null) {
 					val UserChanModes(chanModeMap) = tmpCu
-					val chanUserMap = chanModeMap.map {
-						case (c, m) => c -> IrcChannelUser(user, m)
+					val chanUserMap = new JHashMap[String, IrcChannelUser]
+					chanModeMap.entrySet().forEach { entry =>
+						chanUserMap.put(entry.getKey, IrcChannelUser(user, entry.getValue))
 					}
-					userMap(nick) = UserObjects(user, chanUserMap)
+					userMap.put(nick, UserObjects(user, chanUserMap))
 				}
 				user
 			case UserObjects(user, _) => user
@@ -395,7 +399,8 @@ object AlisaNetworkCharset extends Charset(AlisaNetwork.CHARSET_NAME, Array()) {
 
 final class AlisaNetworkCharsetProvider extends CharsetProvider {
 
-	val charsets: java.util.Iterator[Charset] = List(AlisaNetworkCharset).iterator
+	val charsets: java.util.Iterator[Charset] =
+		List(AlisaNetworkCharset).iterator.asJava.asInstanceOf[java.util.Iterator[Charset]]
 
 	def charsetForName(charsetName: String) =
 		if (charsetName == AlisaNetwork.CHARSET_NAME)

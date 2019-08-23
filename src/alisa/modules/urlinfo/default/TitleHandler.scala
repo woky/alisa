@@ -31,7 +31,7 @@ private abstract class TitleHandler(buf: CharBuffer) extends DefaultHandler {
 	import StreamState._
 	import TitleState._
 
-	final val breakEx = new IOException with ControlThrowable
+	final val breakEx = new IOException
 
 	protected final var streamState = SS_INIT
 	protected final var titleState = TS_INIT

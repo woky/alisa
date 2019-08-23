@@ -8,7 +8,7 @@ import org.apache.lucene.analysis.core.KeywordAnalyzer
 import java.io.Reader
 import org.apache.lucene.analysis.Analyzer.TokenStreamComponents
 import org.apache.lucene.analysis.util.CharTokenizer
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 object LuceneCommon {
 
@@ -27,7 +27,7 @@ object LuceneCommon {
 
 	def createAnalyzer(messageAnalyzer: Analyzer) = {
 		val famap = FIELD_ANALYZERS_MAP + (F_MSG -> messageAnalyzer)
-		new PerFieldAnalyzerWrapper(DEFAULT_ANALYZER, famap)
+		new PerFieldAnalyzerWrapper(DEFAULT_ANALYZER, famap.asJava)
 	}
 
 	def createFieldAnalyzerMap = {

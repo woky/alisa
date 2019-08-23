@@ -5,7 +5,7 @@ import org.jibble.pircbot.PircBot
 import java.net.{InetSocketAddress, URLEncoder}
 import alisa.util.Misc._
 
-final class CmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: String,
+final class LogCmdHandler(allowedIds: AllowedIds, lucene: LuceneService, baseUrl: String,
                        whitelist: Iterable[UserMatcher])
 		extends OneCmdHandler("log") {
 
