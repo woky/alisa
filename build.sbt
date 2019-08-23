@@ -12,8 +12,6 @@ libraryDependencies ++= Seq(
   "com.google.guava" % "guava" % "17.0",
   "com.jsuereth" % "scala-arm_2.12" % "2.0",
   "org.glassfish" % "javax.json" % "1.0.4",
-  "com.google.api-client" % "google-api-client" % "1.19.1",
-  "com.google.apis" % "google-api-services-customsearch" % "v1-rev46-1.20.0",
   "junit" % "junit" % "4.11" % "test",
 ) ++ Seq(
   "lucene-analyzers-common",
@@ -29,7 +27,10 @@ libraryDependencies ++= Seq(
 ).map("io.netty" % _ % "4.0.21.Final") ++ Seq(
   "powermock-api-easymock",
   "powermock-module-junit4",
-).map("org.powermock" % _ % "1.5" % "test")
+).map("org.powermock" % _ % "1.5" % "test") ++ Seq(
+  "com.google.api-client" % "google-api-client" % "1.19.1",
+  "com.google.apis" % "google-api-services-customsearch" % "v1-rev46-1.20.0",
+).map(_.exclude("com.google.guava", "guava-jdk5"))
 
 Compile / scalaSource       := baseDirectory.value / "src"
 Compile / javaSource        := baseDirectory.value / "src"
@@ -40,3 +41,5 @@ Test    / resourceDirectory := baseDirectory.value / "test"
 
 exportJars := true
 Compile / packageBin / mainClass := Some("alisa.Alisa")
+
+lazy val alisaProject = (project in file(".")).settings(OneJar.oneJarSettings)
