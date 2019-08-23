@@ -162,20 +162,7 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 
 			val buf = CharBuffer.allocate(MAX_MSG_LEN)
 
-			def isAllowedUrl(url: URL): Boolean = {
-				!InetAddress.getAllByName(url.getHost).exists(addr => addr.isLoopbackAddress ||
-						addr.isSiteLocalAddress)
-			}
-
-			for (url <- findUrls(evt.message.decoded).filter(
-				url => try {
-					isAllowedUrl(url)
-				} catch {
-					case ex: UnknownHostException =>
-						evt.bot.sendMessage(evt.channel, "ERROR: " + ex.toString)
-						false
-				}
-			)) {
+			for (url <- findUrls(evt.message.decoded)) {
 				val ELLIPSIS = "…"
 				buf.position(0)
 				buf.limit(buf.capacity - 2 /* ELLIPSIS byte length */)
@@ -201,14 +188,20 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 			true
 	}
 
+	private def isLocalUrl(url: URL): Boolean =
+		InetAddress.getAllByName(url.getHost)
+			.exists(addr => addr.isLoopbackAddress || addr.isSiteLocalAddress)
+
 	private def isBlacklisted(url: URL) =
 		config.hostBlacklist.exists(_.matcher(url.getHost).matches)
 
 	private def fill(buf: CharBuffer, startUrl: URL) {
 		@tailrec
 		def iterUrls(nextUrl: URL, visited: Set[URL], redirCount: Int) {
-			if (isBlacklisted(nextUrl))
+			if (isLocalUrl(nextUrl) || isBlacklisted(nextUrl)) {
+				buf ++= f"ERROR: Not going to visit $nextUrl"
 				return
+			}
 			if (HANDLERS.exists(handler => {
 				buf.position(0)
 				handler.fill(buf, config, nextUrl)
@@ -219,8 +212,7 @@ final class UrlInfoModule(val config: Config) extends Module with IrcEventHandle
 
 			httpConn.setConnectTimeout(config.connTimeout)
 			httpConn.setReadTimeout(config.soTimeout)
-			// our redirect handling is slower (creating HttpUrlConnection instances)
-			//httpConn.setInstanceFollowRedirects(false)
+			httpConn.setInstanceFollowRedirects(false)
 
 			httpConn.setRequestProperty("Accept", "text/html, text/plain, text/css, text/sgml, */*;q=0.01")
 			httpConn.setRequestProperty("User-Agent", "Lynx/2.8.5rel.1 libwww-FM/2.14 SSL-MM/1.4.1 OpenSSL/0.9.7d")
